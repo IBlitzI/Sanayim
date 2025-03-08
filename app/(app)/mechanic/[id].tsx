@@ -54,7 +54,8 @@ export default function MechanicProfileScreen() {
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
   const { conversations } = useSelector((state: RootState) => state.chat);
-  
+  const { theme } = useSelector((state: RootState) => state.settings);
+  const isDark = theme === 'dark';
   // Find the mechanic by ID
   const mechanic = mockMechanics.find(m => m.id === id);
   
@@ -95,44 +96,44 @@ export default function MechanicProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
+      <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#cccccc' }]}>
         <Image
           source={{ uri: mechanic.profileImage }}
           style={styles.profileImage}
         />
-        <Text style={styles.name}>{mechanic.fullName}</Text>
+        <Text style={[styles.name, { color: isDark ? '#fff' : '#000' }]}>{mechanic.fullName}</Text>
         
         <View style={styles.ratingContainer}>
           <Star size={18} color="#f1c40f" fill="#f1c40f" />
-          <Text style={styles.rating}>{mechanic.rating.toFixed(1)}</Text>
-          <Text style={styles.ratingCount}>({mechanic.reviews.length} reviews)</Text>
+          <Text style={[styles.rating, { color: isDark ? '#f1c40f' : '#f39c12' }]}>{mechanic.rating.toFixed(1)}</Text>
+          <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>({mechanic.reviews.length} reviews)</Text>
         </View>
         
         <View style={styles.locationContainer}>
-          <MapPin size={16} color="#3498db" />
-          <Text style={styles.location}>{mechanic.location}</Text>
+          <MapPin size={16} color={isDark ? '#3498db' : '#2980b9'} />
+          <Text style={[styles.location, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{mechanic.location}</Text>
         </View>
       </View>
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Specialties</Text>
+        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Specialties</Text>
         <View style={styles.specialtiesContainer}>
           {mechanic.specialties.map((specialty, index) => (
-            <View key={index} style={styles.specialtyBadge}>
-              <Tool size={14} color="#fff" />
-              <Text style={styles.specialtyText}>{specialty}</Text>
+            <View key={index} style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1' }]}>
+              <Tool size={14} color={isDark ? '#fff' : '#000'} />
+              <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>{specialty}</Text>
             </View>
           ))}
         </View>
       </View>
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Reviews</Text>
+        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Reviews</Text>
         {mechanic.reviews.map((review) => (
-          <View key={review.id} style={styles.reviewItem}>
+          <View key={review.id} style={[styles.reviewItem, { backgroundColor: isDark ? '#1e1e1e' : '#f5f5f5' }]}>
             <View style={styles.reviewHeader}>
-              <Text style={styles.reviewerName}>{review.userName}</Text>
+              <Text style={[styles.reviewerName, { color: isDark ? '#fff' : '#000' }]}>{review.userName}</Text>
               <View style={styles.reviewRating}>
                 {[...Array(5)].map((_, i) => (
                   <Star
@@ -144,8 +145,8 @@ export default function MechanicProfileScreen() {
                 ))}
               </View>
             </View>
-            <Text style={styles.reviewComment}>{review.comment}</Text>
-            <Text style={styles.reviewDate}>{new Date(review.date).toLocaleDateString()}</Text>
+            <Text style={[styles.reviewComment, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{review.comment}</Text>
+            <Text style={[styles.reviewDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>{new Date(review.date).toLocaleDateString()}</Text>
           </View>
         ))}
       </View>
@@ -154,7 +155,6 @@ export default function MechanicProfileScreen() {
         <Button
           title="Contact Mechanic"
           onPress={handleContactMechanic}
-          style={styles.contactButton}
           textStyle={styles.contactButtonText}
         />
       </View>

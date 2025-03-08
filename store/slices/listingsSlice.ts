@@ -21,7 +21,7 @@ interface Listing {
   status: 'open' | 'assigned' | 'completed';
   createdAt: string;
   bids: Bid[];
-  selectedBidId?: string;
+  selectedBidId?: string | null;
 }
 
 interface Mechanic {

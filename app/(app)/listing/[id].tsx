@@ -6,7 +6,7 @@ import { RootState } from '../../../store';
 import { setSelectedListing, addBidToListing, selectBid } from '../../../store/slices/listingsSlice';
 import { createConversation } from '../../../store/slices/chatSlice';
 import Button from '../../../components/Button';
-import { MapPin, Clock, DollarSign, Calendar } from 'lucide-react-native';
+import { MapPin, Clock, DollarSign, Calendar, ArrowLeft } from 'lucide-react-native';
 
 // Mock listings data
 const mockListings = [
@@ -18,8 +18,9 @@ const mockListings = [
     description: 'My car makes a strange noise when I brake. Need help diagnosing the issue.',
     images: ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
     location: 'Ostim Sanayi Bölgesi',
-    status: 'open',
+    status: 'open' as 'open',
     createdAt: '2023-06-20T10:30:00Z',
+    selectedBidId: null,
     bids: [
       {
         id: 'bid1',
@@ -40,8 +41,9 @@ const mockListings = [
     description: 'Engine light is on. Car is running rough and has reduced power.',
     images: ['https://images.unsplash.com/photo-1503376780353-7e6692767b70?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
     location: 'İvedik Sanayi Bölgesi',
-    status: 'open',
+    status: 'open' as 'open',
     createdAt: '2023-06-19T14:45:00Z',
+    selectedBidId: null,
     bids: [],
   },
   {
@@ -52,8 +54,9 @@ const mockListings = [
     description: 'Need to replace the timing belt on my 2015 Toyota Corolla.',
     images: ['https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
     location: 'Sincan Sanayi Bölgesi',
-    status: 'open',
+    status: 'open' as 'open',
     createdAt: '2023-06-18T09:15:00Z',
+    selectedBidId: null,
     bids: [],
   },
 ];
@@ -63,11 +66,14 @@ export default function ListingDetailScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
+  const { theme } = useSelector((state: RootState) => state.settings);
   
   const [bidAmount, setBidAmount] = useState('');
   const [estimatedTime, setEstimatedTime] = useState('');
   const [bidMessage, setBidMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const isDark = theme === 'dark';
   
   // Find the listing by ID
   const listing = mockListings.find(l => l.id === id);
@@ -80,7 +86,20 @@ export default function ListingDetailScreen() {
 
   if (!listing) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+        <View style={[styles.header, { 
+          backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+          borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' 
+        }]}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={24} color={isDark ? '#fff' : '#000'} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: isDark ? '#fff' : '#000' }]}>Listing Details</Text>
+          <View style={styles.placeholder} />
+        </View>
         <Text style={styles.errorText}>Listing not found</Text>
       </View>
     );
@@ -144,7 +163,7 @@ export default function ListingDetailScreen() {
                 id: `conv-${Date.now()}`,
                 participantId: selectedBid.mechanicId,
                 participantName: selectedBid.mechanicName,
-                participantImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80', // Mock image
+                participantImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
                 unreadCount: 0,
                 messages: [],
               };
@@ -159,7 +178,21 @@ export default function ListingDetailScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+      <View style={[styles.header, { 
+        backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+        borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' 
+      }]}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.back()}
+        >
+          <ArrowLeft size={24} color={isDark ? '#fff' : '#000'} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: isDark ? '#fff' : '#000' }]}>Repair Request</Text>
+        <View style={styles.placeholder} />
+      </View>
+      
       <View style={styles.imageContainer}>
         <Image
           source={{ uri: listing.images[0] }}
@@ -168,9 +201,9 @@ export default function ListingDetailScreen() {
         />
       </View>
       
-      <View style={styles.detailsContainer}>
+      <View style={[styles.detailsContainer, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
         <View style={styles.header}>
-          <Text style={styles.licensePlate}>{listing.vehicleLicensePlate}</Text>
+          <Text style={[styles.licensePlate, { color: isDark ? '#fff' : '#000' }]}>{listing.vehicleLicensePlate}</Text>
           <View style={[
             styles.statusBadge,
             listing.status === 'open' ? styles.openStatus :
@@ -181,50 +214,50 @@ export default function ListingDetailScreen() {
           </View>
         </View>
         
-        <Text style={styles.ownerName}>Owner: {listing.ownerName}</Text>
+        <Text style={[styles.ownerName, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Owner: {listing.ownerName}</Text>
         
         <View style={styles.infoRow}>
           <MapPin size={16} color="#3498db" />
-          <Text style={styles.infoText}>{listing.location}</Text>
+          <Text style={[styles.infoText, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{listing.location}</Text>
         </View>
         
         <View style={styles.infoRow}>
           <Clock size={16} color="#3498db" />
-          <Text style={styles.infoText}>
+          <Text style={[styles.infoText, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>
             Posted on {new Date(listing.createdAt).toLocaleDateString()}
           </Text>
         </View>
         
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionTitle}>Description</Text>
-          <Text style={styles.description}>{listing.description}</Text>
+          <Text style={[styles.descriptionTitle, { color: isDark ? '#fff' : '#000' }]}>Description</Text>
+          <Text style={[styles.description, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{listing.description}</Text>
         </View>
       </View>
       
       {listing.bids.length > 0 && (
-        <View style={styles.bidsContainer}>
-          <Text style={styles.bidsTitle}>Bids ({listing.bids.length})</Text>
+        <View style={[styles.bidsContainer, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+          <Text style={[styles.bidsTitle, { color: isDark ? '#fff' : '#000' }]}>Bids ({listing.bids.length})</Text>
           
           {listing.bids.map((bid) => (
-            <View key={bid.id} style={styles.bidItem}>
+            <View key={bid.id} style={[styles.bidItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}>
               <View style={styles.bidHeader}>
-                <Text style={styles.bidderName}>{bid.mechanicName}</Text>
+                <Text style={[styles.bidderName, { color: isDark ? '#fff' : '#000' }]}>{bid.mechanicName}</Text>
                 <Text style={styles.bidAmount}>₺{bid.amount}</Text>
               </View>
               
               <View style={styles.bidInfoRow}>
-                <Clock size={14} color="#95a5a6" />
-                <Text style={styles.bidInfoText}>Estimated time: {bid.estimatedTime}</Text>
+                <Clock size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
+                <Text style={[styles.bidInfoText, { color: isDark ? '#bdc3c7' : '#7f8c8d' }]}>Estimated time: {bid.estimatedTime}</Text>
               </View>
               
               <View style={styles.bidInfoRow}>
-                <Calendar size={14} color="#95a5a6" />
-                <Text style={styles.bidInfoText}>
+                <Calendar size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
+                <Text style={[styles.bidInfoText, { color: isDark ? '#bdc3c7' : '#7f8c8d' }]}>
                   Bid placed on {new Date(bid.createdAt).toLocaleDateString()}
                 </Text>
               </View>
               
-              <Text style={styles.bidMessage}>{bid.message}</Text>
+              <Text style={[styles.bidMessage, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{bid.message}</Text>
               
               {isOwner && listing.status === 'open' && (
                 <Button
@@ -247,44 +280,55 @@ export default function ListingDetailScreen() {
       
       {isMechanic && listing.status === 'open' && (
         <View style={styles.placeBidContainer}>
-          <Text style={styles.placeBidTitle}>Place Your Bid</Text>
+          <Text style={[styles.placeBidTitle, { color: isDark ? '#fff' : '#000' }]}>Place Your Bid</Text>
           
           <View style={styles.inputRow}>
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Bid Amount (₺)</Text>
-              <View style={styles.amountInputContainer}>
-                <DollarSign size={16} color="#95a5a6" />
+              <Text style={[styles.inputLabel, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Bid Amount (₺)</Text>
+              <View style={[styles.amountInputContainer, { 
+                backgroundColor: isDark ? '#2c3e50' : '#f0f0f0',
+                borderColor: isDark ? '#34495e' : '#e0e0e0',
+              }]}>
+                <DollarSign size={16} color={isDark ? '#95a5a6' : '#7f8c8d'} />
                 <TextInput
-                  style={styles.amountInput}
+                  style={[styles.amountInput, { color: isDark ? '#fff' : '#000' }]}
                   value={bidAmount}
                   onChangeText={setBidAmount}
                   placeholder="0"
-                  placeholderTextColor="#95a5a6"
+                  placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
                   keyboardType="numeric"
                 />
               </View>
             </View>
             
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Estimated Time</Text>
+              <Text style={[styles.inputLabel, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Estimated Time</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: isDark ? '#2c3e50' : '#f0f0f0',
+                  color: isDark ? '#fff' : '#000',
+                  borderColor: isDark ? '#34495e' : '#e0e0e0',
+                }]}
                 value={estimatedTime}
                 onChangeText={setEstimatedTime}
                 placeholder="e.g. 2 hours"
-                placeholderTextColor="#95a5a6"
+                placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
               />
             </View>
           </View>
           
           <View style={styles.messageContainer}>
-            <Text style={styles.inputLabel}>Message</Text>
+            <Text style={[styles.inputLabel, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Message</Text>
             <TextInput
-              style={styles.messageInput}
+              style={[styles.messageInput, { 
+                backgroundColor: isDark ? '#2c3e50' : '#f0f0f0',
+                color: isDark ? '#fff' : '#000',
+                borderColor: isDark ? '#34495e' : '#e0e0e0',
+              }]}
               value={bidMessage}
               onChangeText={setBidMessage}
               placeholder="Describe how you'll fix the issue..."
-              placeholderTextColor="#95a5a6"
+              placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
               multiline
               numberOfLines={4}
             />
@@ -304,7 +348,24 @@ export default function ListingDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    height: 60,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  placeholder: {
+    width: 40,
   },
   imageContainer: {
     width: '100%',
@@ -317,18 +378,10 @@ const styles = StyleSheet.create({
   detailsContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#2c2c2c',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
   },
   licensePlate: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
   },
   statusBadge: {
     paddingVertical: 4,
@@ -351,7 +404,6 @@ const styles = StyleSheet.create({
   },
   ownerName: {
     fontSize: 16,
-    color: '#ecf0f1',
     marginBottom: 12,
   },
   infoRow: {
@@ -360,7 +412,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoText: {
-    color: '#ecf0f1',
     marginLeft: 8,
     fontSize: 14,
   },
@@ -370,27 +421,22 @@ const styles = StyleSheet.create({
   descriptionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 8,
   },
   description: {
-    color: '#ecf0f1',
     fontSize: 16,
     lineHeight: 24,
   },
   bidsContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#2c2c2c',
   },
   bidsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 16,
   },
   bidItem: {
-    backgroundColor: '#1e1e1e',
     padding: 16,
     borderRadius: 8,
     marginBottom: 12,
@@ -405,7 +451,6 @@ const styles = StyleSheet.create({
   bidderName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   bidAmount: {
     fontSize: 18,
@@ -418,12 +463,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   bidInfoText: {
-    color: '#bdc3c7',
     marginLeft: 6,
     fontSize: 12,
   },
   bidMessage: {
-    color: '#ecf0f1',
     marginTop: 8,
     marginBottom: 12,
     fontSize: 14,
@@ -452,7 +495,6 @@ const styles = StyleSheet.create({
   placeBidTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 16,
   },
   inputRow: {
@@ -466,26 +508,23 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    color: '#ecf0f1',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#2c3e50',
     borderRadius: 8,
     padding: 12,
-    color: '#fff',
     fontSize: 16,
+    borderWidth: 1,
   },
   amountInputContainer: {
-    backgroundColor: '#2c3e50',
     borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
   },
   amountInput: {
     flex: 1,
-    color: '#fff',
     fontSize: 16,
     marginLeft: 8,
   },
@@ -493,13 +532,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   messageInput: {
-    backgroundColor: '#2c3e50',
     borderRadius: 8,
     padding: 12,
-    color: '#fff',
     fontSize: 16,
     height: 100,
     textAlignVertical: 'top',
+    borderWidth: 1,
   },
   errorText: {
     color: '#e74c3c',

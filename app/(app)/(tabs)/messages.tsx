@@ -84,6 +84,8 @@ export default function MessagesScreen() {
   const dispatch = useDispatch();
   const { conversations } = useSelector((state: RootState) => state.chat);
   const [loading, setLoading] = useState(true);
+  const { theme } = useSelector((state: RootState) => state.settings);
+  const isDark = theme === 'dark';
 
   useEffect(() => {
     // Simulate API call to fetch conversations
@@ -149,6 +151,92 @@ export default function MessagesScreen() {
     </TouchableOpacity>
   );
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? '#121212' : '#ffffff',
+    },
+    listContainer: {
+      padding: 16,
+      flexGrow: 1,
+    },
+    conversationItem: {
+      flexDirection: 'row',
+      padding: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0',
+      alignItems: 'center',
+    },
+    avatar: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      marginRight: 12,
+    },
+    conversationContent: {
+      flex: 1,
+    },
+    conversationHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
+    participantName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: isDark ? '#fff' : '#000',
+    },
+    timeText: {
+      fontSize: 12,
+      color: isDark ? '#95a5a6' : '#7f8c8d',
+    },
+    messageRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    lastMessage: {
+      fontSize: 14,
+      color: isDark ? '#bdc3c7' : '#2c3e50',
+      flex: 1,
+    },
+    unreadMessage: {
+      color: isDark ? '#fff' : '#000',
+      fontWeight: '500',
+    },
+    unreadBadge: {
+      backgroundColor: '#3498db',
+      borderRadius: 10,
+      width: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 8,
+    },
+    unreadCount: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: 100,
+    },
+    emptyText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: isDark ? '#fff' : '#000',
+      marginBottom: 8,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: isDark ? '#95a5a6' : '#7f8c8d',
+      textAlign: 'center',
+    },
+  });
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -170,89 +258,3 @@ export default function MessagesScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
-  listContainer: {
-    padding: 16,
-    flexGrow: 1,
-  },
-  conversationItem: {
-    flexDirection: 'row',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2c2c2c',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-  },
-  conversationContent: {
-    flex: 1,
-  },
-  conversationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  participantName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  timeText: {
-    fontSize: 12,
-    color: '#95a5a6',
-  },
-  messageRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  lastMessage: {
-    fontSize: 14,
-    color: '#bdc3c7',
-    flex: 1,
-  },
-  unreadMessage: {
-    color: '#fff',
-    fontWeight: '500',
-  },
-  unreadBadge: {
-    backgroundColor: '#3498db',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  unreadCount: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#95a5a6',
-    textAlign: 'center',
-  },
-});

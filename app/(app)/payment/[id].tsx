@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert,
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Button from '../../../components/Button';
 import { CreditCard, CircleCheck as CheckCircle, Calendar, Lock } from 'lucide-react-native';
+import { RootState } from '@/store';
+import { useSelector } from 'react-redux';
 
 export default function PaymentScreen() {
   const { id } = useLocalSearchParams();
@@ -13,6 +15,8 @@ export default function PaymentScreen() {
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [loading, setLoading] = useState(false);
+  const { theme } = useSelector((state: RootState) => state.settings);
+  const isDark = theme === 'dark';
   
   // Mock repair details
   const repairDetails = {

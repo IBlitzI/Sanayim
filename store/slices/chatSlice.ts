@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { Socket } from 'socket.io-client';
 
 interface Message {
   id: string;
@@ -25,6 +26,7 @@ interface ChatState {
   activeConversation: Conversation | null;
   isLoading: boolean;
   error: string | null;
+  socket: Socket | null;
 }
 
 const initialState: ChatState = {
@@ -32,12 +34,22 @@ const initialState: ChatState = {
   activeConversation: null,
   isLoading: false,
   error: null,
+  socket: null,
 };
 
 const chatSlice = createSlice({
   name: 'chat',
   initialState,
   reducers: {
+    setSocket: (state, action: PayloadAction<Socket>) => {
+      state.socket = action.payload as any;
+    },
+    disconnectSocket: (state) => {
+      if (state.socket) {
+        state.socket.disconnect();
+        state.socket = null;
+      }
+    },
     fetchConversationsStart: (state) => {
       state.isLoading = true;
       state.error = null;
@@ -99,6 +111,8 @@ const chatSlice = createSlice({
 });
 
 export const {
+  setSocket,
+  disconnectSocket,
   fetchConversationsStart,
   fetchConversationsSuccess,
   fetchConversationsFailure,

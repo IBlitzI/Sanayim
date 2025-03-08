@@ -6,32 +6,35 @@ import { Chrome as Home, MessageSquare, User, Plus, Settings } from 'lucide-reac
 
 export default function TabLayout() {
   const { user } = useSelector((state: RootState) => state.auth);
+  const { theme } = useSelector((state: RootState) => state.settings);
   const isVehicleOwner = user?.userType === 'vehicle_owner';
+
+  const isDark = theme === 'dark';
 
   return (
     <Tabs
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: '#1e1e1e',
-          borderTopColor: '#2c2c2c',
+          backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+          borderTopColor: isDark ? '#2c2c2c' : '#e0e0e0',
           height: 60,
           paddingBottom: 8,
         },
         tabBarActiveTintColor: '#3498db',
-        tabBarInactiveTintColor: '#95a5a6',
+        tabBarInactiveTintColor: isDark ? '#95a5a6' : '#7f8c8d',
         tabBarLabelStyle: {
           fontSize: 12,
         },
         headerStyle: {
-          backgroundColor: '#1e1e1e',
-          borderBottomColor: '#2c2c2c',
+          backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+          borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0',
           borderBottomWidth: 1,
         },
         headerTitleStyle: {
-          color: '#fff',
+          color: isDark ? '#fff' : '#000',
           fontWeight: '600',
         },
-        headerTintColor: '#fff',
+        headerTintColor: isDark ? '#fff' : '#000',
       }}>
       <Tabs.Screen
         name="index"
@@ -56,7 +59,7 @@ export default function TabLayout() {
           options={{
             title: 'Create',
             tabBarIcon: ({ color, size }) => (
-              <Plus size={size * 3} color={color} style={{ borderRadius: size * 1.5, backgroundColor: '#3498db', padding: 10 }} />
+              <Plus size={size * 3} color={isDark ? color : '#fff'} style={{ borderRadius: size * 1.5, backgroundColor:'#3498db' , padding: 10 }} />
             ),
             tabBarLabelStyle: {
               display: 'none',

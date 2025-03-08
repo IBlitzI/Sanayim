@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, ViewStyle, TextStyle } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store';
 
 interface InputProps {
   label: string;
@@ -32,13 +34,15 @@ const Input: React.FC<InputProps> = ({
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
   };
+  const { theme } = useSelector((state: RootState) => state.settings);
+  const isDark = theme === 'dark';
 
   return (
     <View style={[styles.container, style]}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputContainer, error ? styles.inputError : null]}>
+      <Text style={[styles.label, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{label}</Text>
+      <View style={[styles.inputContainer, error ? styles.inputError : null, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1', borderColor: isDark ? '#34495e' : '#bdc3c7' }]}>
         <TextInput
-          style={[styles.input, inputStyle]}
+          style={[styles.input, inputStyle, { color: isDark ? '#fff' : '#2c3e50' }]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -69,22 +73,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     marginBottom: 8,
-    color: '#ecf0f1',
     fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2c3e50',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#34495e',
   },
   input: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    color: '#fff',
     fontSize: 16,
   },
   inputError: {

@@ -3,17 +3,18 @@ import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert } f
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { logout } from '../../../store/slices/authSlice';
+import { toggleTheme, toggleNotifications } from '../../../store/slices/settingsSlice';
 import { RootState } from '../../../store';
-import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOut } from 'lucide-react-native';
+import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOut, Moon, Sun } from 'lucide-react-native';
 
 export default function SettingsScreen() {
   const dispatch = useDispatch();
   const router = useRouter();
   const { user } = useSelector((state: RootState) => state.auth);
-  
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = React.useState(true);
-  
+  const { theme, notificationsEnabled } = useSelector((state: RootState) => state.settings);
+
+  const isDark = theme === 'dark';
+
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -36,96 +37,112 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        
+    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+      <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+        <Text style={[styles.sectionTitle, { color: isDark ? '#3498db' : '#2980b9' }]}>Account</Text>
+
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(52, 152, 219, 0.1)' : 'rgba(52, 152, 219, 0.05)' }]}>
               <Shield size={20} color="#3498db" />
             </View>
-            <Text style={styles.settingText}>Privacy & Security</Text>
+            <Text style={[styles.settingText, { color: isDark ? '#fff' : '#000' }]}>Privacy & Security</Text>
           </View>
-          <ChevronRight size={20} color="#95a5a6" />
+          <ChevronRight size={20} color={isDark ? '#95a5a6' : '#7f8c8d'} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(52, 152, 219, 0.1)' : 'rgba(52, 152, 219, 0.05)' }]}>
               <CreditCard size={20} color="#3498db" />
             </View>
-            <Text style={styles.settingText}>Payment Methods</Text>
+            <Text style={[styles.settingText, { color: isDark ? '#fff' : '#000' }]}>Payment Methods</Text>
           </View>
-          <ChevronRight size={20} color="#95a5a6" />
+          <ChevronRight size={20} color={isDark ? '#95a5a6' : '#7f8c8d'} />
         </TouchableOpacity>
       </View>
-      
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        
-        <View style={styles.settingItem}>
+
+      <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+        <Text style={[styles.sectionTitle, { color: isDark ? '#3498db' : '#2980b9' }]}>Preferences</Text>
+
+        {/* <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(52, 152, 219, 0.1)' : 'rgba(52, 152, 219, 0.05)' }]}>
               <Bell size={20} color="#3498db" />
             </View>
-            <Text style={styles.settingText}>Notifications</Text>
+            <Text style={[styles.settingText, { color: isDark ? '#fff' : '#000' }]}>Notifications</Text>
           </View>
           <Switch
-            value={notificationsEnabled}
-            onValueChange={setNotificationsEnabled}
-            trackColor={{ false: '#767577', true: '#2980b9' }}
-            thumbColor={notificationsEnabled ? '#3498db' : '#f4f3f4'}
+            value={isDark} // isDark durumunu kontrol et
+            onValueChange={(value: boolean) => {
+              dispatch(toggleTheme()); // toggleTheme action'ını çağır
+            }}
+            trackColor={{ false: '#d0d0d0', true: '#2980b9' }}
+            thumbColor={isDark ? '#3498db' : '#f4f3f4'}
           />
-        </View>
-        
+        </View> */}
+
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <View style={styles.iconContainer}>
-              <Shield size={20} color="#3498db" />
+            <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(52, 152, 219, 0.1)' : 'rgba(52, 152, 219, 0.05)' }]}>
+              {isDark ? (
+                <Moon size={20} color="#3498db" />
+              ) : (
+                <Sun size={20} color="#3498db" />
+              )}
             </View>
-            <Text style={styles.settingText}>Dark Mode</Text>
+            <Text style={[styles.settingText, { color: isDark ? '#fff' : '#000' }]}>
+              {isDark ? 'Dark Mode' : 'Light Mode'}
+            </Text>
           </View>
           <Switch
-            value={darkModeEnabled}
-            onValueChange={setDarkModeEnabled}
-            trackColor={{ false: '#767577', true: '#2980b9' }}
-            thumbColor={darkModeEnabled ? '#3498db' : '#f4f3f4'}
+            value={isDark} 
+            onValueChange={(value: boolean) => {
+              dispatch(toggleTheme()); 
+            }}
+            trackColor={{ false: '#d0d0d0', true: '#2980b9' }}
+            thumbColor={isDark ? '#3498db' : '#f4f3f4'}
           />
         </View>
       </View>
-      
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Support</Text>
-        
+
+      <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+        <Text style={[styles.sectionTitle, { color: isDark ? '#3498db' : '#2980b9' }]}>Support</Text>
+
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(52, 152, 219, 0.1)' : 'rgba(52, 152, 219, 0.05)' }]}>
               <HelpCircle size={20} color="#3498db" />
             </View>
-            <Text style={styles.settingText}>Help Center</Text>
+            <Text style={[styles.settingText, { color: isDark ? '#fff' : '#000' }]}>Help Center</Text>
           </View>
-          <ChevronRight size={20} color="#95a5a6" />
+          <ChevronRight size={20} color={isDark ? '#95a5a6' : '#7f8c8d'} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(52, 152, 219, 0.1)' : 'rgba(52, 152, 219, 0.05)' }]}>
               <HelpCircle size={20} color="#3498db" />
             </View>
-            <Text style={styles.settingText}>Contact Support</Text>
+            <Text style={[styles.settingText, { color: isDark ? '#fff' : '#000' }]}>Contact Support</Text>
           </View>
-          <ChevronRight size={20} color="#95a5a6" />
+          <ChevronRight size={20} color={isDark ? '#95a5a6' : '#7f8c8d'} />
         </TouchableOpacity>
       </View>
-      
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+
+      <TouchableOpacity
+        style={[
+          styles.logoutButton,
+          { backgroundColor: isDark ? 'rgba(231, 76, 60, 0.1)' : 'rgba(231, 76, 60, 0.05)' }
+        ]}
+        onPress={handleLogout}
+      >
         <LogOut size={20} color="#e74c3c" />
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
-      
+
       <View style={styles.footer}>
-        <Text style={styles.versionText}>Sanayim v1.0.0</Text>
+        <Text style={[styles.versionText, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>Sanayim v1.0.0</Text>
       </View>
     </ScrollView>
   );
@@ -134,17 +151,14 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
   },
   section: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#2c2c2c',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3498db',
     marginBottom: 16,
   },
   settingItem: {
@@ -161,14 +175,12 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(52, 152, 219, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   settingText: {
     fontSize: 16,
-    color: '#fff',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -177,7 +189,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 20,
     marginHorizontal: 20,
-    backgroundColor: 'rgba(231, 76, 60, 0.1)',
     borderRadius: 8,
   },
   logoutText: {
@@ -191,7 +202,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   versionText: {
-    color: '#95a5a6',
     fontSize: 12,
   },
 });

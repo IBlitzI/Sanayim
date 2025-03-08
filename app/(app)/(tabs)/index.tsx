@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
 import { setSelectedZone, fetchMechanicsSuccess, fetchListingsSuccess } from '../../../store/slices/listingsSlice';
 import Card from '../../../components/Card';
-import { ChevronDown } from 'lucide-react-native';
+import { ChevronDown, Plus } from 'lucide-react-native';
 
-// Mock data for mechanics
 const mockMechanics = [
   {
     id: '1',
@@ -47,7 +46,6 @@ const mockMechanics = [
   },
 ];
 
-// Mock data for repair listings
 const mockListings = [
   {
     id: '1',
@@ -57,9 +55,20 @@ const mockListings = [
     description: 'My car makes a strange noise when I brake. Need help diagnosing the issue.',
     images: ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
     location: 'Ostim Sanayi Bölgesi',
-    status: 'open' as 'open', // Ensure the status is correctly typed
+    status: 'open' as 'open',
     createdAt: '2023-06-20T10:30:00Z',
-    bids: [],
+    selectedBidId: null,
+    bids: [
+      {
+        id: 'bid1',
+        mechanicId: '1',
+        mechanicName: 'Ahmet Yılmaz',
+        amount: 750,
+        estimatedTime: '2 hours',
+        message: 'I can fix your brake issue. It sounds like worn brake pads.',
+        createdAt: '2023-06-20T12:30:00Z',
+      },
+    ],
   },
   {
     id: '2',
@@ -69,8 +78,9 @@ const mockListings = [
     description: 'Engine light is on. Car is running rough and has reduced power.',
     images: ['https://images.unsplash.com/photo-1503376780353-7e6692767b70?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
     location: 'İvedik Sanayi Bölgesi',
-    status: 'open' as 'open', // Ensure the status is correctly typed
+    status: 'open' as 'open',
     createdAt: '2023-06-19T14:45:00Z',
+    selectedBidId: null,
     bids: [],
   },
   {
@@ -81,25 +91,28 @@ const mockListings = [
     description: 'Need to replace the timing belt on my 2015 Toyota Corolla.',
     images: ['https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
     location: 'Sincan Sanayi Bölgesi',
-    status: 'open' as 'open', // Ensure the status is correctly typed
+    status: 'open' as 'open',
     createdAt: '2023-06-18T09:15:00Z',
+    selectedBidId: null,
     bids: [],
   },
 ];
+
 
 export default function HomeScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
   const { industrialZones, selectedZone, mechanics, listings } = useSelector((state: RootState) => state.listings);
+  const { theme } = useSelector((state: RootState) => state.settings);
   
   const [loading, setLoading] = useState(true);
   const [showZoneDropdown, setShowZoneDropdown] = useState(false);
   
+  const isDark = theme === 'dark';
   const isVehicleOwner = user?.userType === 'vehicle_owner';
 
   useEffect(() => {
-    // Simulate API call to fetch data
     setTimeout(() => {
       if (isVehicleOwner) {
         dispatch(fetchMechanicsSuccess(mockMechanics));
@@ -158,77 +171,84 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.filterContainer}>
-        <Text style={styles.filterLabel}>Industrial Zone:</Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => setShowZoneDropdown(!showZoneDropdown)}
-        >
-          <Text style={styles.dropdownText}>{selectedZone || 'Select Zone'}</Text>
-          <ChevronDown size={20} color="#fff" />
-        </TouchableOpacity>
-        
-        {showZoneDropdown && (
-          <View style={styles.dropdownMenu}>
-            {industrialZones.map((zone) => (
-              <TouchableOpacity
-                key={zone}
-                style={styles.dropdownItem}
-                onPress={() => handleZoneSelect(zone)}
-              >
-                <Text style={styles.dropdownItemText}>{zone}</Text>
-              </TouchableOpacity>
-            ))}
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+      <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+        <View style={styles.filterContainer}>
+          <Text style={[styles.filterLabel, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Industrial Zone:</Text>
+          <TouchableOpacity
+            style={[styles.dropdown, { backgroundColor: isDark ? '#2c3e50' : '#ffffff' }]}
+            onPress={() => setShowZoneDropdown(!showZoneDropdown)}
+          >
+            <Text style={[styles.dropdownText, { color: isDark ? '#fff' : '#000' }]}>{selectedZone || 'Select Zone'}</Text>
+            <ChevronDown size={20} color={isDark ? '#fff' : '#000'} />
+          </TouchableOpacity>
+          
+          {showZoneDropdown && (
+            <View style={[styles.dropdownMenu, { 
+              backgroundColor: isDark ? '#2c3e50' : '#ffffff',
+              borderColor: isDark ? '#34495e' : '#e0e0e0',
+            }]}>
+              {industrialZones.map((zone) => (
+                <TouchableOpacity
+                  key={zone}
+                  style={[styles.dropdownItem, { borderBottomColor: isDark ? '#34495e' : '#e0e0e0' }]}
+                  onPress={() => handleZoneSelect(zone)}
+                >
+                  <Text style={[styles.dropdownItemText, { color: isDark ? '#fff' : '#000' }]}>{zone}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3498db" />
           </View>
+        ) : (
+          <>
+            {isVehicleOwner ? (
+              <>
+                <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Mechanics in {selectedZone}</Text>
+                <FlatList
+                  data={filteredMechanics}
+                  renderItem={renderMechanicItem}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.listContainer}
+                  showsVerticalScrollIndicator={false}
+                  ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>No mechanics found in this area</Text>
+                  }
+                />
+              </>
+            ) : (
+              <>
+                <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Repair Requests in {selectedZone}</Text>
+                <FlatList
+                  data={filteredListings}
+                  renderItem={renderListingItem}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.listContainer}
+                  showsVerticalScrollIndicator={false}
+                  ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>No repair requests found in this area</Text>
+                  }
+                />
+              </>
+            )}
+          </>
         )}
       </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3498db" />
-        </View>
-      ) : (
-        <>
-          {isVehicleOwner ? (
-            <>
-              <Text style={styles.sectionTitle}>Mechanics in {selectedZone}</Text>
-              <FlatList
-                data={filteredMechanics}
-                renderItem={renderMechanicItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContainer}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No mechanics found in this area</Text>
-                }
-              />
-            </>
-          ) : (
-            <>
-              <Text style={styles.sectionTitle}>Repair Requests in {selectedZone}</Text>
-              <FlatList
-                data={filteredListings}
-                renderItem={renderListingItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContainer}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No repair requests found in this area</Text>
-                }
-              />
-            </>
-          )}
-        </>
-      )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#121212',
     padding: 16,
   },
   filterContainer: {
@@ -295,5 +315,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
     fontSize: 16,
+  },
+  createButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#3498db',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });

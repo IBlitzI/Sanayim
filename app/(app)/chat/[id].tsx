@@ -17,6 +17,8 @@ export default function ChatScreen() {
   
   // Find the conversation by ID
   const conversation = conversations.find(c => c.id === id);
+  const { theme } = useSelector((state: RootState) => state.settings);
+  const isDark = theme === 'dark';
   
   useEffect(() => {
     if (conversation) {
@@ -106,18 +108,18 @@ export default function ChatScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#cccccc' }]}>
         <Image
           source={{ uri: activeConversation.participantImage }}
           style={styles.avatar}
         />
         <View style={styles.headerInfo}>
-          <Text style={styles.headerName}>{activeConversation.participantName}</Text>
-          <Text style={styles.headerStatus}>Online</Text>
+          <Text style={[styles.headerName, { color: isDark ? '#fff' : '#000' }]}>{activeConversation.participantName}</Text>
+          <Text style={[styles.headerStatus, { color: isDark ? '#2ecc71' : '#27ae60' }]}>Online</Text>
         </View>
       </View>
       
@@ -131,23 +133,23 @@ export default function ChatScreen() {
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No messages yet</Text>
-            <Text style={styles.emptySubtext}>Start the conversation by sending a message</Text>
+            <Text style={[styles.emptyText, { color: isDark ? '#fff' : '#000' }]}>No messages yet</Text>
+            <Text style={[styles.emptySubtext, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>Start the conversation by sending a message</Text>
           </View>
         }
       />
       
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { borderTopColor: isDark ? '#2c2c2c' : '#cccccc' }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1', color: isDark ? '#fff' : '#000' }]}
           value={messageText}
           onChangeText={setMessageText}
           placeholder="Type a message..."
-          placeholderTextColor="#95a5a6"
+          placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
           multiline
         />
         <TouchableOpacity
-          style={[styles.sendButton, !messageText.trim() && styles.disabledSendButton]}
+          style={[styles.sendButton, !messageText.trim() && styles.disabledSendButton, { backgroundColor: !messageText.trim() ? (isDark ? '#95a5a6' : '#bdc3c7') : (isDark ? '#3498db' : '#2980b9') }]}
           onPress={handleSendMessage}
           disabled={!messageText.trim()}
         >

@@ -19,6 +19,8 @@ export default function CreateListingScreen() {
   const [location, setLocation] = useState(selectedZone || industrialZones[0]);
   const [showZoneDropdown, setShowZoneDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { theme } = useSelector((state: RootState) => state.settings);
+  const isDark = theme === 'dark';
   
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -84,11 +86,17 @@ export default function CreateListingScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ecf0f1' }]}>
       <View style={styles.formContainer}>
-        <Text style={styles.sectionTitle}>Vehicle Issue</Text>
+        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Vehicle Issue</Text>
         <TextInput
-          style={styles.descriptionInput}
+          style={[
+            styles.descriptionInput,
+            {
+              backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
+              color: isDark ? '#fff' : '#2c3e50',
+            },
+          ]}
           value={description}
           onChangeText={setDescription}
           placeholder="Describe the issue with your vehicle..."
@@ -97,8 +105,8 @@ export default function CreateListingScreen() {
           numberOfLines={6}
         />
         
-        <Text style={styles.sectionTitle}>Photos</Text>
-        <Text style={styles.sectionSubtitle}>
+        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Photos</Text>
+        <Text style={[styles.sectionSubtitle, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
           Add photos of the damage or issue to help mechanics understand the problem
         </Text>
         
@@ -116,35 +124,49 @@ export default function CreateListingScreen() {
           ))}
           
           {images.length < 5 && (
-            <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
-              <Camera size={24} color="#3498db" />
-              <Text style={styles.addImageText}>Add Photo</Text>
+            <TouchableOpacity style={[styles.addImageButton, { borderColor: isDark ? '#3498db' : '#2980b9' }]} onPress={pickImage}>
+              <Camera size={24} color={isDark ? '#3498db' : '#2980b9'} />
+              <Text style={[styles.addImageText, { color: isDark ? '#3498db' : '#2980b9' }]}>Add Photo</Text>
             </TouchableOpacity>
           )}
         </View>
         
-        <Text style={styles.sectionTitle}>Location</Text>
+        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Location</Text>
         <View style={styles.locationContainer}>
           <TouchableOpacity
-            style={styles.dropdown}
+            style={[
+              styles.dropdown,
+              {
+                backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
+              },
+            ]}
             onPress={() => setShowZoneDropdown(!showZoneDropdown)}
           >
-            <Text style={styles.dropdownText}>{location || 'Select Industrial Zone'}</Text>
-            <ChevronDown size={20} color="#fff" />
+            <Text style={[styles.dropdownText, { color: isDark ? '#fff' : '#2c3e50' }]}>{location || 'Select Industrial Zone'}</Text>
+            <ChevronDown size={20} color={isDark ? '#fff': '#2c3e50'} />
           </TouchableOpacity>
           
           {showZoneDropdown && (
-            <View style={styles.dropdownMenu}>
+            <View style={[
+              styles.dropdownMenu,
+              {
+                backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
+                borderColor: isDark ? '#34495e' : '#bdc3c7',
+              },
+            ]}>
               {industrialZones.map((zone) => (
                 <TouchableOpacity
                   key={zone}
-                  style={styles.dropdownItem}
+                  style={[
+                    styles.dropdownItem,
+                    { borderBottomColor: isDark ? '#34495e' : '#bdc3c7' },
+                  ]}
                   onPress={() => {
                     setLocation(zone);
                     setShowZoneDropdown(false);
                   }}
                 >
-                  <Text style={styles.dropdownItemText}>{zone}</Text>
+                  <Text style={[styles.dropdownItemText, { color: isDark ? '#fff' : '#2c3e50' }]}>{zone}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -165,7 +187,6 @@ export default function CreateListingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
   },
   formContainer: {
     padding: 20,
@@ -173,19 +194,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 12,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#95a5a6',
     marginBottom: 16,
   },
   descriptionInput: {
-    backgroundColor: '#2c3e50',
     borderRadius: 8,
     padding: 16,
-    color: '#fff',
     fontSize: 16,
     height: 120,
     textAlignVertical: 'top',
@@ -225,7 +242,6 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#3498db',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
@@ -233,7 +249,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   addImageText: {
-    color: '#3498db',
     marginTop: 8,
     fontSize: 12,
   },
@@ -246,12 +261,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#2c3e50',
     borderRadius: 8,
     padding: 16,
   },
   dropdownText: {
-    color: '#fff',
     fontSize: 16,
   },
   dropdownMenu: {
@@ -259,19 +272,15 @@ const styles = StyleSheet.create({
     top: 60,
     left: 0,
     right: 0,
-    backgroundColor: '#2c3e50',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#34495e',
     zIndex: 20,
   },
   dropdownItem: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#34495e',
   },
   dropdownItemText: {
-    color: '#fff',
     fontSize: 16,
   },
   submitButton: {

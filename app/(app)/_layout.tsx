@@ -9,6 +9,8 @@ import { ArrowLeft } from 'lucide-react-native';
 export default function AppLayout() {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
+  const { theme } = useSelector((state: RootState) => state.settings);
+  const isDark = theme === 'dark';
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
@@ -26,7 +28,7 @@ export default function AppLayout() {
           title: 'Create Repair Request',
           headerLeft: () => (
             <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
-              <ArrowLeft size={24} color="#ffffff" />
+              <ArrowLeft size={24} color={isDark ? '#ffffff': '#000'} />
             </TouchableOpacity>
           )
         }} 

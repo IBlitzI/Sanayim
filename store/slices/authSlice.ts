@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User {
   id: string;
@@ -9,6 +10,7 @@ interface User {
   location?: string;
   profileImage?: string;
   rating?: number;
+  specialties?: string[];
 }
 
 interface AuthState {
@@ -41,6 +43,10 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.error = null;
+
+      // AsyncStorage'a token ve user verisini kaydet
+      AsyncStorage.setItem('auth_token', action.payload.token);
+      AsyncStorage.setItem('user_data', JSON.stringify(action.payload.user));
     },
     loginFailure: (state, action: PayloadAction<string>) => {
       state.isLoading = false;
@@ -50,6 +56,10 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
+      
+      // AsyncStorage'dan token ve user verisini sil
+      AsyncStorage.removeItem('auth_token');
+      AsyncStorage.removeItem('user_data');
     },
     updateUserProfile: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {

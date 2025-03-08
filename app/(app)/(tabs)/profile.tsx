@@ -1,14 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { useSelector } from 'react-redux';
+import { useRouter } from 'expo-router';
 import { RootState } from '../../../store';
 import Button from '../../../components/Button';
 import { Star, MapPin, PenTool as Tool, Car, Clock, CircleCheck as CheckCircle } from 'lucide-react-native';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { user } = useSelector((state: RootState) => state.auth);
   const { listings } = useSelector((state: RootState) => state.listings);
+  const { theme } = useSelector((state: RootState) => state.settings);
   
+  const isDark = theme === 'dark';
   const isVehicleOwner = user?.userType === 'vehicle_owner';
   
   // Filter listings for the current user
@@ -21,49 +25,53 @@ export default function ProfileScreen() {
     { id: '3', userId: '103', userName: 'Ali R.', rating: 5, comment: 'Fixed my brakes perfectly.', date: '2023-06-10' },
   ];
 
+  const handleEditProfile = () => {
+    router.push('../edit-profile');
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+      <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
         <Image
           source={{ uri: user?.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
           style={styles.profileImage}
         />
-        <Text style={styles.name}>{user?.fullName}</Text>
+        <Text style={[styles.name, { color: isDark ? '#fff' : '#000' }]}>{user?.fullName}</Text>
         
         <View style={styles.infoRow}>
           <MapPin size={16} color="#3498db" />
-          <Text style={styles.infoText}>{user?.location || 'No location set'}</Text>
+          <Text style={[styles.infoText, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{user?.location || 'No location set'}</Text>
         </View>
         
         {isVehicleOwner ? (
           <View style={styles.infoRow}>
             <Car size={16} color="#3498db" />
-            <Text style={styles.infoText}>License Plate: {user?.licensePlate}</Text>
+            <Text style={[styles.infoText, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>License Plate: {user?.licensePlate}</Text>
           </View>
         ) : (
           <View style={styles.ratingContainer}>
             <Star size={16} color="#f1c40f" fill="#f1c40f" />
             <Text style={styles.rating}>{user?.rating?.toFixed(1) || '0.0'}</Text>
-            <Text style={styles.ratingCount}>({mockReviews.length} reviews)</Text>
+            <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>({mockReviews.length} reviews)</Text>
           </View>
         )}
         
         <Button
           title="Edit Profile"
           type="outline"
-          onPress={() => {}}
+          onPress={handleEditProfile}
           style={styles.editButton}
         />
       </View>
       
       {isVehicleOwner ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>My Repair Requests</Text>
+        <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>My Repair Requests</Text>
           {userListings.length > 0 ? (
             userListings.map((listing) => (
-              <View key={listing.id} style={styles.listingItem}>
+              <View key={listing.id} style={[styles.listingItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}>
                 <View style={styles.listingHeader}>
-                  <Text style={styles.listingTitle}>{listing.vehicleLicensePlate}</Text>
+                  <Text style={[styles.listingTitle, { color: isDark ? '#fff' : '#000' }]}>{listing.vehicleLicensePlate}</Text>
                   <View style={[
                     styles.statusBadge,
                     listing.status === 'open' ? styles.openStatus :
@@ -73,15 +81,15 @@ export default function ProfileScreen() {
                     <Text style={styles.statusText}>{listing.status}</Text>
                   </View>
                 </View>
-                <Text style={styles.listingDescription}>{listing.description}</Text>
+                <Text style={[styles.listingDescription, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{listing.description}</Text>
                 <View style={styles.listingFooter}>
                   <View style={styles.infoRow}>
-                    <MapPin size={14} color="#95a5a6" />
-                    <Text style={styles.listingInfo}>{listing.location}</Text>
+                    <MapPin size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
+                    <Text style={[styles.listingInfo, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>{listing.location}</Text>
                   </View>
                   <View style={styles.infoRow}>
-                    <Clock size={14} color="#95a5a6" />
-                    <Text style={styles.listingInfo}>
+                    <Clock size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
+                    <Text style={[styles.listingInfo, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
                       {new Date(listing.createdAt).toLocaleDateString()}
                     </Text>
                   </View>
@@ -89,35 +97,35 @@ export default function ProfileScreen() {
               </View>
             ))
           ) : (
-            <Text style={styles.emptyText}>You haven't created any repair requests yet</Text>
+            <Text style={[styles.emptyText, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>You haven't created any repair requests yet</Text>
           )}
         </View>
       ) : (
         <>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Specialties</Text>
+          <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+            <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Specialties</Text>
             <View style={styles.specialtiesContainer}>
-              <View style={styles.specialtyBadge}>
-                <Tool size={14} color="#fff" />
-                <Text style={styles.specialtyText}>Engine Repair</Text>
+              <View style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#e0e0e0' }]}>
+                <Tool size={14} color={isDark ? '#fff' : '#000'} />
+                <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>Engine Repair</Text>
               </View>
-              <View style={styles.specialtyBadge}>
-                <Tool size={14} color="#fff" />
-                <Text style={styles.specialtyText}>Electrical Systems</Text>
+              <View style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#e0e0e0' }]}>
+                <Tool size={14} color={isDark ? '#fff' : '#000'} />
+                <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>Electrical Systems</Text>
               </View>
-              <View style={styles.specialtyBadge}>
-                <Tool size={14} color="#fff" />
-                <Text style={styles.specialtyText}>Brake Systems</Text>
+              <View style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#e0e0e0' }]}>
+                <Tool size={14} color={isDark ? '#fff' : '#000'} />
+                <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>Brake Systems</Text>
               </View>
             </View>
           </View>
           
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Reviews</Text>
+          <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+            <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Reviews</Text>
             {mockReviews.map((review) => (
-              <View key={review.id} style={styles.reviewItem}>
+              <View key={review.id} style={[styles.reviewItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}>
                 <View style={styles.reviewHeader}>
-                  <Text style={styles.reviewerName}>{review.userName}</Text>
+                  <Text style={[styles.reviewerName, { color: isDark ? '#fff' : '#000' }]}>{review.userName}</Text>
                   <View style={styles.reviewRating}>
                     {[...Array(5)].map((_, i) => (
                       <Star
@@ -129,8 +137,8 @@ export default function ProfileScreen() {
                     ))}
                   </View>
                 </View>
-                <Text style={styles.reviewComment}>{review.comment}</Text>
-                <Text style={styles.reviewDate}>{new Date(review.date).toLocaleDateString()}</Text>
+                <Text style={[styles.reviewComment, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{review.comment}</Text>
+                <Text style={[styles.reviewDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>{new Date(review.date).toLocaleDateString()}</Text>
               </View>
             ))}
           </View>
@@ -143,13 +151,11 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
   },
   header: {
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#2c2c2c',
   },
   profileImage: {
     width: 100,
@@ -160,7 +166,6 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   infoRow: {
@@ -169,7 +174,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoText: {
-    color: '#ecf0f1',
     marginLeft: 8,
     fontSize: 14,
   },
@@ -185,7 +189,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   ratingCount: {
-    color: '#95a5a6',
     marginLeft: 4,
     fontSize: 14,
   },
@@ -195,12 +198,10 @@ const styles = StyleSheet.create({
   section: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#2c2c2c',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 16,
   },
   specialtiesContainer: {
@@ -210,7 +211,6 @@ const styles = StyleSheet.create({
   specialtyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2c3e50',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -218,12 +218,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   specialtyText: {
-    color: '#fff',
     marginLeft: 6,
     fontSize: 14,
   },
   reviewItem: {
-    backgroundColor: '#1e1e1e',
     padding: 16,
     borderRadius: 8,
     marginBottom: 12,
@@ -237,22 +235,18 @@ const styles = StyleSheet.create({
   reviewerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   reviewRating: {
     flexDirection: 'row',
   },
   reviewComment: {
-    color: '#ecf0f1',
     marginBottom: 8,
     fontSize: 14,
   },
   reviewDate: {
-    color: '#95a5a6',
     fontSize: 12,
   },
   listingItem: {
-    backgroundColor: '#1e1e1e',
     padding: 16,
     borderRadius: 8,
     marginBottom: 12,
@@ -266,7 +260,6 @@ const styles = StyleSheet.create({
   listingTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   statusBadge: {
     paddingVertical: 4,
@@ -288,7 +281,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   listingDescription: {
-    color: '#ecf0f1',
     marginBottom: 12,
     fontSize: 14,
   },
@@ -297,12 +289,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   listingInfo: {
-    color: '#95a5a6',
     marginLeft: 4,
     fontSize: 12,
   },
   emptyText: {
-    color: '#95a5a6',
     textAlign: 'center',
     marginTop: 20,
     fontSize: 14,
