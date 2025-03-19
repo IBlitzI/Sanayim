@@ -12,7 +12,7 @@ export default function CreateScreen() {
   const isDark = theme === 'dark';
   
   // Only vehicle owners can access this screen
-  if (user?.userType !== 'vehicle_owner') {
+  if (!user || user?.userType !== 'vehicle_owner') {
     return <Redirect href="/(app)/(tabs)" />;
   }
   
@@ -27,6 +27,5 @@ export default function CreateScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: '#121212', // Remove this line
   },
 });

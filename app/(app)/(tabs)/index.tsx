@@ -98,7 +98,6 @@ const mockListings = [
   },
 ];
 
-
 export default function HomeScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
