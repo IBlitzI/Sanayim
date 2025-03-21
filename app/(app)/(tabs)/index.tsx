@@ -144,9 +144,14 @@ export default function HomeScreen() {
     mechanic => !selectedZone || mechanic.location === selectedZone
   );
 
-  const filteredListings = listings.filter(
-    listing => !selectedZone || listing.location === selectedZone
-  );
+  const filteredListings = listings.filter(listing => {
+    // Eğer kullanıcı vehicle owner ise sadece kendi ilanlarını göster
+    if (isVehicleOwner) {
+      return listing.ownerId === user?.id && listing.status === 'open';
+    }
+    // Mechanic için seçili bölgedeki açık ilanları göster
+    return !selectedZone || (listing.location === selectedZone && listing.status === 'open');
+  });
 
   const renderMechanicItem = ({ item }: { item: any }) => (
     <Card

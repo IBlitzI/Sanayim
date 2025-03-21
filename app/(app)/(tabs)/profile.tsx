@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { RootState } from '../../../store';
 import Button from '../../../components/Button';
-import { Star, MapPin, PenTool as Tool, Car, Clock, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { Star, MapPin, PenTool as Tool, Car, Clock, CircleCheck as CheckCircle, MessageSquare } from 'lucide-react-native';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -15,15 +15,50 @@ export default function ProfileScreen() {
   const isDark = theme === 'dark';
   const isVehicleOwner = user?.userType === 'vehicle_owner';
   
-  // Filter listings for the current user
+  // Filter listings for the current user - ALL statuses, not just open
   const userListings = listings.filter(listing => listing.ownerId === user?.id);
   
+  const handleViewListing = (listingId: string) => {
+    router.push(`/listing/${listingId}`);
+  };
+
   // Mock reviews for mechanic
   const mockReviews = [
     { id: '1', userId: '101', userName: 'Mehmet K.', rating: 5, comment: 'Great service, fixed my car quickly.', date: '2023-05-15' },
     { id: '2', userId: '102', userName: 'Ayşe T.', rating: 4, comment: 'Professional and knowledgeable.', date: '2023-04-22' },
     { id: '3', userId: '103', userName: 'Ali R.', rating: 5, comment: 'Fixed my brakes perfectly.', date: '2023-06-10' },
   ];
+
+  // Mock bids for mechanic
+  const mockBids = !isVehicleOwner ? [
+    { 
+      id: 'bid1',
+      listingId: '1',
+      vehicleLicensePlate: 'ABC123',
+      description: 'Brake system repair',
+      amount: 750,
+      status: 'accepted',
+      createdAt: '2023-06-20T12:30:00Z'
+    },
+    {
+      id: 'bid2',
+      listingId: '2',
+      vehicleLicensePlate: 'XYZ789',
+      description: 'Engine diagnostics and repair',
+      amount: 1200,
+      status: 'pending',
+      createdAt: '2023-06-21T15:45:00Z'
+    },
+    {
+      id: 'bid3',
+      listingId: '3',
+      vehicleLicensePlate: 'DEF456',
+      description: 'Timing belt replacement',
+      amount: 900,
+      status: 'rejected',
+      createdAt: '2023-06-19T09:15:00Z'
+    }
+  ] : [];
 
   const handleEditProfile = () => {
     router.push('../edit-profile');
@@ -69,7 +104,11 @@ export default function ProfileScreen() {
           <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>My Repair Requests</Text>
           {userListings.length > 0 ? (
             userListings.map((listing) => (
-              <View key={listing.id} style={[styles.listingItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}>
+              <TouchableOpacity
+                key={listing.id}
+                style={[styles.listingItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}
+                onPress={() => handleViewListing(listing.id)}
+              >
                 <View style={styles.listingHeader}>
                   <Text style={[styles.listingTitle, { color: isDark ? '#fff' : '#000' }]}>{listing.vehicleLicensePlate}</Text>
                   <View style={[
@@ -81,7 +120,9 @@ export default function ProfileScreen() {
                     <Text style={styles.statusText}>{listing.status}</Text>
                   </View>
                 </View>
-                <Text style={[styles.listingDescription, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{listing.description}</Text>
+                <Text style={[styles.listingDescription, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>
+                  {listing.description}
+                </Text>
                 <View style={styles.listingFooter}>
                   <View style={styles.infoRow}>
                     <MapPin size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
@@ -94,14 +135,56 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                 </View>
-              </View>
+                
+                {/* Show number of bids */}
+                {listing.bids && listing.bids.length > 0 && (
+                  <View style={[styles.bidsCounter, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1' }]}>
+                    <MessageSquare size={14} color={isDark ? '#fff' : '#2c3e50'} />
+                    <Text style={[styles.bidsCount, { color: isDark ? '#fff' : '#2c3e50' }]}>
+                      {listing.bids.length} bid{listing.bids.length !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             ))
           ) : (
-            <Text style={[styles.emptyText, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>You haven't created any repair requests yet</Text>
+            <Text style={[styles.emptyText, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+              You haven't created any repair requests yet
+            </Text>
           )}
         </View>
       ) : (
         <>
+          <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+            <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>My Bids</Text>
+            {mockBids.map((bid) => (
+              <TouchableOpacity 
+                key={bid.id} 
+                style={[styles.bidItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}
+                onPress={() => router.push(`/listing/${bid.listingId}`)}
+              >
+                <View style={styles.bidHeader}>
+                  <Text style={[styles.bidTitle, { color: isDark ? '#fff' : '#000' }]}>{bid.vehicleLicensePlate}</Text>
+                  <View style={[
+                    styles.statusBadge,
+                    bid.status === 'accepted' ? styles.acceptedStatus :
+                    bid.status === 'rejected' ? styles.rejectedStatus :
+                    styles.pendingStatus
+                  ]}>
+                    <Text style={styles.statusText}>{bid.status}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.bidDescription, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{bid.description}</Text>
+                <View style={styles.bidFooter}>
+                  <Text style={[styles.bidAmount, { color: isDark ? '#2ecc71' : '#27ae60' }]}>₺{bid.amount}</Text>
+                  <Text style={[styles.bidDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                    {new Date(bid.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
             <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Specialties</Text>
             <View style={styles.specialtiesContainer}>
@@ -296,5 +379,59 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     fontSize: 14,
+  },
+  bidItem: {
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  bidHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  bidTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  bidDescription: {
+    marginBottom: 12,
+    fontSize: 14,
+  },
+  bidFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bidAmount: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  bidDate: {
+    fontSize: 12,
+  },
+  acceptedStatus: {
+    backgroundColor: '#2ecc71',
+  },
+  rejectedStatus: {
+    backgroundColor: '#e74c3c',
+  },
+  pendingStatus: {
+    backgroundColor: '#f1c40f',
+  },
+  bidsCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  bidsCount: {
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

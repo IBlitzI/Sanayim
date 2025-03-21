@@ -23,15 +23,24 @@ export default function CreateListingScreen() {
   const isDark = theme === 'dark';
   
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
+    try {
+      // Request both permissions
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+      const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!result.canceled) {
-      setImages([...images, result.assets[0].uri]);
+      if (!mediaLibraryPermission.granted || !cameraPermission.granted) {
+        Alert.alert('Permission Needed', 'We need permission to access your photos');
+        return;
+      }
+
+      let result = await ImagePicker.launchImageLibraryAsync();
+
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setImages([...images, result.assets[0].uri]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
   

@@ -1,71 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
-import { setSelectedListing, addBidToListing, selectBid } from '../../../store/slices/listingsSlice';
+import { addBidToListing, selectBid } from '../../../store/slices/listingsSlice';
 import { createConversation } from '../../../store/slices/chatSlice';
 import Button from '../../../components/Button';
-import { MapPin, Clock, DollarSign, Calendar, ArrowLeft } from 'lucide-react-native';
-
-// Mock listings data
-const mockListings = [
-  {
-    id: '1',
-    ownerId: '101',
-    ownerName: 'Mehmet Kaya',
-    vehicleLicensePlate: 'ABC123',
-    description: 'My car makes a strange noise when I brake. Need help diagnosing the issue.',
-    images: ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
-    location: 'Ostim Sanayi Bölgesi',
-    status: 'open' as 'open',
-    createdAt: '2023-06-20T10:30:00Z',
-    selectedBidId: null,
-    bids: [
-      {
-        id: 'bid1',
-        mechanicId: '1',
-        mechanicName: 'Ahmet Yılmaz',
-        amount: 750,
-        estimatedTime: '2 hours',
-        message: 'I can fix your brake issue. It sounds like worn brake pads.',
-        createdAt: '2023-06-20T12:30:00Z',
-      },
-    ],
-  },
-  {
-    id: '2',
-    ownerId: '102',
-    ownerName: 'Ayşe Tekin',
-    vehicleLicensePlate: 'XYZ789',
-    description: 'Engine light is on. Car is running rough and has reduced power.',
-    images: ['https://images.unsplash.com/photo-1503376780353-7e6692767b70?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
-    location: 'İvedik Sanayi Bölgesi',
-    status: 'open' as 'open',
-    createdAt: '2023-06-19T14:45:00Z',
-    selectedBidId: null,
-    bids: [],
-  },
-  {
-    id: '3',
-    ownerId: '103',
-    ownerName: 'Ali Rıza',
-    vehicleLicensePlate: 'DEF456',
-    description: 'Need to replace the timing belt on my 2015 Toyota Corolla.',
-    images: ['https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
-    location: 'Sincan Sanayi Bölgesi',
-    status: 'open' as 'open',
-    createdAt: '2023-06-18T09:15:00Z',
-    selectedBidId: null,
-    bids: [],
-  },
-];
+import { MapPin, Clock, DollarSign, Calendar } from 'lucide-react-native';
 
 export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
+  const { listings } = useSelector((state: RootState) => state.listings);
   const { theme } = useSelector((state: RootState) => state.settings);
   
   const [bidAmount, setBidAmount] = useState('');
@@ -75,31 +23,19 @@ export default function ListingDetailScreen() {
   
   const isDark = theme === 'dark';
   
-  // Find the listing by ID
-  const listing = mockListings.find(l => l.id === id);
+  // Find the listing from Redux store
+  const listing = listings.find(l => l.id === id);
   
-  React.useEffect(() => {
-    if (listing) {
-      dispatch(setSelectedListing(listing));
-    }
-  }, [dispatch, listing]);
-
   if (!listing) {
     return (
       <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
-        <View style={[styles.header, { 
-          backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
-          borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' 
-        }]}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color={isDark ? '#fff' : '#000'} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: isDark ? '#fff' : '#000' }]}>Listing Details</Text>
-          <View style={styles.placeholder} />
-        </View>
+        <Stack.Screen options={{ 
+          title: 'Listing Details',
+          headerStyle: { 
+            backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+          },
+          headerTintColor: isDark ? '#fff' : '#000',
+        }} />
         <Text style={styles.errorText}>Listing not found</Text>
       </View>
     );
@@ -179,19 +115,13 @@ export default function ListingDetailScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
-      <View style={[styles.header, { 
-        backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
-        borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' 
-      }]}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color={isDark ? '#fff' : '#000'} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: isDark ? '#fff' : '#000' }]}>Repair Request</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <Stack.Screen options={{ 
+        title: 'Repair Request',
+        headerStyle: { 
+          backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+        },
+        headerTintColor: isDark ? '#fff' : '#000',
+      }} />
       
       <View style={styles.imageContainer}>
         <Image

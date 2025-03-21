@@ -140,6 +140,12 @@ const listingsSlice = createSlice({
     setSelectedZone: (state, action: PayloadAction<string | null>) => {
       state.selectedZone = action.payload;
     },
+    updateListingStatus: (state, action: PayloadAction<{ listingId: string; status: 'open' | 'assigned' | 'completed' }>) => {
+      const listing = state.listings.find(l => l.id === action.payload.listingId);
+      if (listing) {
+        listing.status = action.payload.status;
+      }
+    },
   },
 });
 
@@ -157,6 +163,7 @@ export const {
   addBidToListing,
   selectBid,
   setSelectedZone,
+  updateListingStatus,
 } = listingsSlice.actions;
 
 export default listingsSlice.reducer;
