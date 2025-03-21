@@ -35,6 +35,18 @@ export default function AppLayout() {
       />
       <Stack.Screen name="chat/[id]" options={{ headerShown: true, title: 'Chat' }} />
       <Stack.Screen name="payment/[id]" options={{ headerShown: true, title: 'Payment' }} />
+      <Stack.Screen 
+        name="ai-chat" 
+        options={{ 
+          headerShown: true, 
+          title: 'AI Assistant',
+          headerLeft: () => (
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <ArrowLeft size={24} color={isDark ? '#ffffff': '#000'} />
+            </TouchableOpacity>
+          )
+        }} 
+      />
     </Stack>
   );
 }

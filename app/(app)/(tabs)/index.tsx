@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
 import { setSelectedZone, fetchMechanicsSuccess, fetchListingsSuccess } from '../../../store/slices/listingsSlice';
 import Card from '../../../components/Card';
-import { ChevronDown, Plus } from 'lucide-react-native';
+import { ChevronDown, Plus, MessageSquare } from 'lucide-react-native';
 
 const mockMechanics = [
   {
@@ -243,6 +243,12 @@ export default function HomeScreen() {
           </>
         )}
       </View>
+      {isVehicleOwner ? <TouchableOpacity 
+        style={[styles.aiChatButton, { backgroundColor: isDark ? '#3498db' : '#2980b9' }]}
+        onPress={() => router.push('/ai-chat')}
+      >
+        <MessageSquare size={24} color="#fff" />
+      </TouchableOpacity> : null}
     </SafeAreaView>
   );
 }
@@ -335,5 +341,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  aiChatButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#3498db',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
   },
 });

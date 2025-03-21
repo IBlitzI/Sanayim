@@ -87,8 +87,8 @@ export default function TabLayout() {
         />
         
         {/* Hide these screens from tab bar */}
-        <Tabs.Screen name="customer" options={{ href: null }} />
-        <Tabs.Screen name="mechanic" options={{ href: null }} />
+        {/* <Tabs.Screen name="customer" options={{ href: null }} />
+        <Tabs.Screen name="mechanic" options={{ href: null }} /> */}
       </Tabs>
     );
   } else {
@@ -129,8 +129,8 @@ export default function TabLayout() {
         />
         
         {/* Hide these screens from tab bar */}
-        <Tabs.Screen name="customer" options={{ href: null }} />
-        <Tabs.Screen name="mechanic" options={{ href: null }} />
+        {/* <Tabs.Screen name="customer" options={{ href: null }} />
+        <Tabs.Screen name="mechanic" options={{ href: null }} /> */}
         <Tabs.Screen name="create" options={{ href: null }} />
       </Tabs>
     );

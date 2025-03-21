@@ -6,7 +6,7 @@ import { RootState } from '../../store';
 import { addNewListing } from '../../store/slices/listingsSlice';
 import Button from '../../components/Button';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, X, ChevronDown, ChevronLeft } from 'lucide-react-native';
+import { Camera, X, ChevronDown, MessageSquare } from 'lucide-react-native';
 
 export default function CreateListingScreen() {
   const router = useRouter();
@@ -95,101 +95,109 @@ export default function CreateListingScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ecf0f1' }]}>
-      <View style={styles.formContainer}>
-        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Vehicle Issue</Text>
-        <TextInput
-          style={[
-            styles.descriptionInput,
-            {
-              backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
-              color: isDark ? '#fff' : '#2c3e50',
-            },
-          ]}
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Describe the issue with your vehicle..."
-          placeholderTextColor="#95a5a6"
-          multiline
-          numberOfLines={6}
-        />
-        
-        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Photos</Text>
-        <Text style={[styles.sectionSubtitle, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
-          Add photos of the damage or issue to help mechanics understand the problem
-        </Text>
-        
-        <View style={styles.imagesContainer}>
-          {images.map((image, index) => (
-            <View key={index} style={styles.imageWrapper}>
-              <Image source={{ uri: image }} style={styles.image} />
-              <TouchableOpacity
-                style={styles.removeImageButton}
-                onPress={() => removeImage(index)}
-              >
-                <X size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          ))}
-          
-          {images.length < 5 && (
-            <TouchableOpacity style={[styles.addImageButton, { borderColor: isDark ? '#3498db' : '#2980b9' }]} onPress={pickImage}>
-              <Camera size={24} color={isDark ? '#3498db' : '#2980b9'} />
-              <Text style={[styles.addImageText, { color: isDark ? '#3498db' : '#2980b9' }]}>Add Photo</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Location</Text>
-        <View style={styles.locationContainer}>
-          <TouchableOpacity
+    <>
+      <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ecf0f1' }]}>
+        <View style={styles.formContainer}>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Vehicle Issue</Text>
+          <TextInput
             style={[
-              styles.dropdown,
+              styles.descriptionInput,
               {
                 backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
+                color: isDark ? '#fff' : '#2c3e50',
               },
             ]}
-            onPress={() => setShowZoneDropdown(!showZoneDropdown)}
-          >
-            <Text style={[styles.dropdownText, { color: isDark ? '#fff' : '#2c3e50' }]}>{location || 'Select Industrial Zone'}</Text>
-            <ChevronDown size={20} color={isDark ? '#fff': '#2c3e50'} />
-          </TouchableOpacity>
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Describe the issue with your vehicle..."
+            placeholderTextColor="#95a5a6"
+            multiline
+            numberOfLines={6}
+          />
           
-          {showZoneDropdown && (
-            <View style={[
-              styles.dropdownMenu,
-              {
-                backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
-                borderColor: isDark ? '#34495e' : '#bdc3c7',
-              },
-            ]}>
-              {industrialZones.map((zone) => (
+          <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Photos</Text>
+          <Text style={[styles.sectionSubtitle, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+            Add photos of the damage or issue to help mechanics understand the problem
+          </Text>
+          
+          <View style={styles.imagesContainer}>
+            {images.map((image, index) => (
+              <View key={index} style={styles.imageWrapper}>
+                <Image source={{ uri: image }} style={styles.image} />
                 <TouchableOpacity
-                  key={zone}
-                  style={[
-                    styles.dropdownItem,
-                    { borderBottomColor: isDark ? '#34495e' : '#bdc3c7' },
-                  ]}
-                  onPress={() => {
-                    setLocation(zone);
-                    setShowZoneDropdown(false);
-                  }}
+                  style={styles.removeImageButton}
+                  onPress={() => removeImage(index)}
                 >
-                  <Text style={[styles.dropdownItemText, { color: isDark ? '#fff' : '#2c3e50' }]}>{zone}</Text>
+                  <X size={16} color="#fff" />
                 </TouchableOpacity>
-              ))}
-            </View>
-          )}
+              </View>
+            ))}
+            
+            {images.length < 5 && (
+              <TouchableOpacity style={[styles.addImageButton, { borderColor: isDark ? '#3498db' : '#2980b9' }]} onPress={pickImage}>
+                <Camera size={24} color={isDark ? '#3498db' : '#2980b9'} />
+                <Text style={[styles.addImageText, { color: isDark ? '#3498db' : '#2980b9' }]}>Add Photo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Location</Text>
+          <View style={styles.locationContainer}>
+            <TouchableOpacity
+              style={[
+                styles.dropdown,
+                {
+                  backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
+                },
+              ]}
+              onPress={() => setShowZoneDropdown(!showZoneDropdown)}
+            >
+              <Text style={[styles.dropdownText, { color: isDark ? '#fff' : '#2c3e50' }]}>{location || 'Select Industrial Zone'}</Text>
+              <ChevronDown size={20} color={isDark ? '#fff': '#2c3e50'} />
+            </TouchableOpacity>
+            
+            {showZoneDropdown && (
+              <View style={[
+                styles.dropdownMenu,
+                {
+                  backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
+                  borderColor: isDark ? '#34495e' : '#bdc3c7',
+                },
+              ]}>
+                {industrialZones.map((zone) => (
+                  <TouchableOpacity
+                    key={zone}
+                    style={[
+                      styles.dropdownItem,
+                      { borderBottomColor: isDark ? '#34495e' : '#bdc3c7' },
+                    ]}
+                    onPress={() => {
+                      setLocation(zone);
+                      setShowZoneDropdown(false);
+                    }}
+                  >
+                    <Text style={[styles.dropdownItemText, { color: isDark ? '#fff' : '#2c3e50' }]}>{zone}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+          
+          <Button
+            title="Submit Repair Request"
+            onPress={handleSubmit}
+            loading={loading}
+            style={styles.submitButton}
+          />
         </View>
-        
-        <Button
-          title="Submit Repair Request"
-          onPress={handleSubmit}
-          loading={loading}
-          style={styles.submitButton}
-        />
-      </View>
-    </ScrollView>
+      </ScrollView>
+      <TouchableOpacity 
+        style={[styles.aiChatButton, { backgroundColor: isDark ? '#3498db' : '#2980b9' }]}
+        onPress={() => router.push('/ai-chat')}
+      >
+        <MessageSquare size={24} color="#fff" />
+      </TouchableOpacity>
+    </>
   );
 }
 
@@ -294,5 +302,25 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 8,
+  },
+  aiChatButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#3498db',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
   },
 });
