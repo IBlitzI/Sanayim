@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TextInput, TouchableOpacity, Alert, Dimensions, FlatList, Modal } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
@@ -7,6 +8,13 @@ import { addBidToListing, selectBid } from '../../../store/slices/listingsSlice'
 import { createConversation } from '../../../store/slices/chatSlice';
 import Button from '../../../components/Button';
 import { MapPin, Clock, DollarSign, Calendar } from 'lucide-react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+interface MediaItem {
+  uri: string;
+  type: 'image' | 'video';
+}
 
 export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -20,11 +28,16 @@ export default function ListingDetailScreen() {
   const [estimatedTime, setEstimatedTime] = useState('');
   const [bidMessage, setBidMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const flatListRef = useRef<FlatList<string>>(null);
   
   const isDark = theme === 'dark';
   
   // Find the listing from Redux store
   const listing = listings.find(l => l.id === id);
+  console.log(listing)
   
   if (!listing) {
     return (
@@ -113,6 +126,64 @@ export default function ListingDetailScreen() {
     );
   };
 
+  const renderMediaItem = ({ item, index }: { item: string; index: number }) => {
+    const isVideo = item.endsWith('.mp4');
+    return (
+      <TouchableOpacity 
+        onPress={() => {
+          setSelectedMedia({ uri: item, type: isVideo ? 'video' : 'image' });
+          setModalVisible(true);
+        }}
+        style={styles.mediaSlide}
+      >
+        {isVideo ? (
+          <Video
+            source={{ uri: item }}
+            style={styles.media}
+            useNativeControls
+            isLooping
+            resizeMode={ResizeMode.CONTAIN}
+          />
+        ) : (
+          <Image
+            source={{ uri: item }}
+            style={styles.media}
+            resizeMode="contain"
+          />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderThumbnail = ({ item, index }: { item: string; index: number }) => {
+    const isVideo = item.endsWith('.mp4');
+    return (
+      <TouchableOpacity 
+        onPress={() => {
+          if (flatListRef.current) {
+            flatListRef.current.scrollToIndex({ index, animated: true });
+          }
+          setActiveIndex(index);
+        }}
+        style={[
+          styles.thumbnail,
+          activeIndex === index && styles.activeThumbnail
+        ]}
+      >
+        <Image
+          source={{ uri: item }}
+          style={styles.thumbnailImage}
+          resizeMode="cover"
+        />
+        {isVideo && (
+          <View style={styles.videoIndicator}>
+            <Text style={styles.videoIndicatorText}>▶</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
       <Stack.Screen options={{ 
@@ -123,12 +194,53 @@ export default function ListingDetailScreen() {
         headerTintColor: isDark ? '#fff' : '#000',
       }} />
       
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: listing.images[0] }}
-          style={styles.image}
-          resizeMode="cover"
+      <View style={styles.mediaContainer}>
+        <FlatList
+          ref={flatListRef}
+          data={listing.images}
+          renderItem={renderMediaItem}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={(e) => {
+            const contentOffset = e.nativeEvent.contentOffset;
+            const viewSize = e.nativeEvent.layoutMeasurement;
+            const newIndex = Math.floor(contentOffset.x / viewSize.width);
+            setActiveIndex(newIndex);
+          }}
+          getItemLayout={(data, index) => ({
+            length: SCREEN_WIDTH,
+            offset: SCREEN_WIDTH * index,
+            index,
+          })}
         />
+        
+        {listing.images.length > 1 && (
+          <>
+            <View style={styles.paginationDots}>
+              {listing.images.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.paginationDot,
+                    index === activeIndex && styles.paginationDotActive,
+                    { backgroundColor: isDark ? '#fff' : '#000' }
+                  ]}
+                />
+              ))}
+            </View>
+
+            <View style={styles.thumbnailContainer}>
+              <FlatList
+                data={listing.images}
+                renderItem={renderThumbnail}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.thumbnailList}
+              />
+            </View>
+          </>
+        )}
       </View>
       
       <View style={[styles.detailsContainer, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
@@ -271,6 +383,38 @@ export default function ListingDetailScreen() {
           />
         </View>
       )}
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={() => setModalVisible(false)}
+          >
+            <Text style={styles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+          
+          {selectedMedia?.type === 'video' ? (
+            <Video
+              source={{ uri: selectedMedia.uri }}
+              style={styles.modalMedia}
+              useNativeControls
+              isLooping
+              resizeMode={ResizeMode.CONTAIN}
+            />
+          ) : (
+            <Image
+              source={{ uri: selectedMedia?.uri }}
+              style={styles.modalMedia}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -297,13 +441,65 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
-  imageContainer: {
+  mediaContainer: {
     width: '100%',
-    height: 200,
+    height: 300,
   },
-  image: {
+  mediaSlide: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paginationDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  thumbnailContainer: {
+    marginTop: 8,
+  },
+  thumbnailList: {
+    paddingHorizontal: 8,
+  },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 4,
+    marginHorizontal: 4,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  activeThumbnail: {
+    borderColor: '#3498db',
+  },
+  thumbnailImage: {
     width: '100%',
     height: '100%',
+  },
+  videoIndicator: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 4,
+    padding: 2,
+  },
+  videoIndicatorText: {
+    color: '#fff',
+    fontSize: 12,
   },
   detailsContainer: {
     padding: 20,
@@ -474,5 +670,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 40,
+  },
+  media: {
+    width: '100%',
+    height: '100%'
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalMedia: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.8,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 1,
+    padding: 10,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });

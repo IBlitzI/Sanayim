@@ -22,25 +22,29 @@ export default function CreateListingScreen() {
   const { theme } = useSelector((state: RootState) => state.settings);
   const isDark = theme === 'dark';
   
-  const pickImage = async () => {
+  const pickMedia = async () => {
     try {
-      // Request both permissions
+      // Kamera ve galeri izinlerini iste
       const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
       const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
+  
       if (!mediaLibraryPermission.granted || !cameraPermission.granted) {
-        Alert.alert('Permission Needed', 'We need permission to access your photos');
+        Alert.alert('Permission Needed', 'We need permission to access your photos and videos.');
         return;
       }
-
-      let result = await ImagePicker.launchImageLibraryAsync();
-
+  
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All, // Hem resim hem video seçme
+        allowsEditing: true, // Kullanıcıya düzenleme imkanı (isteğe bağlı)
+        quality: 1, // En yüksek kalite
+      });
+      console.log(result)
       if (!result.canceled && result.assets?.[0]?.uri) {
         setImages([...images, result.assets[0].uri]);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      console.error('Error picking media:', error);
+      Alert.alert('Error', 'Failed to pick media. Please try again.');
     }
   };
   
@@ -134,7 +138,7 @@ export default function CreateListingScreen() {
             ))}
             
             {images.length < 5 && (
-              <TouchableOpacity style={[styles.addImageButton, { borderColor: isDark ? '#3498db' : '#2980b9' }]} onPress={pickImage}>
+              <TouchableOpacity style={[styles.addImageButton, { borderColor: isDark ? '#3498db' : '#2980b9' }]} onPress={pickMedia}>
                 <Camera size={24} color={isDark ? '#3498db' : '#2980b9'} />
                 <Text style={[styles.addImageText, { color: isDark ? '#3498db' : '#2980b9' }]}>Add Photo</Text>
               </TouchableOpacity>
