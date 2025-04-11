@@ -15,7 +15,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
@@ -24,28 +24,36 @@ export default function LoginScreen() {
     setLoading(true);
     setError(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      // Mock successful login
-      const mockUser = {
-        id: '1',
-        fullName: 'John Doe',
-        email: email,
-        userType: email.includes('mechanic') ? 'mechanic' : 'vehicle_owner',
-        licensePlate: email.includes('mechanic') ? undefined : 'ABC123',
-        location: 'Ostim Sanayi Bölgesi',
-        profileImage: 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-        rating: 4.8,
-      };
+    try {
+      const response = await fetch('http://192.168.157.95:5000/api/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      // Login successful, update Redux store
       dispatch(loginSuccess({ 
-        user: mockUser as any, 
-        token: 'mock-token-12345' 
+        user: data.user,
+        token: data.token 
       }));
       
-      setLoading(false);
       router.replace('/(app)/(tabs)');
-    }, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

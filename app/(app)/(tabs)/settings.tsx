@@ -10,12 +10,12 @@ import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOu
 export default function SettingsScreen() {
   const dispatch = useDispatch();
   const router = useRouter();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { theme, notificationsEnabled } = useSelector((state: RootState) => state.settings);
 
   const isDark = theme === 'dark';
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -26,9 +26,32 @@ export default function SettingsScreen() {
         },
         {
           text: 'Logout',
-          onPress: () => {
-            dispatch(logout());
-            router.replace('/(auth)/login');
+          onPress: async () => {
+            try {
+              // API'ye logout isteği gönder
+              const response = await fetch('http://192.168.157.95:5000/api/users/logout', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+
+              if (!response.ok) {
+                throw new Error('Logout failed');
+              }
+
+              // Redux state'i temizle
+              dispatch(logout());
+              
+              // Login ekranına yönlendir
+              router.replace('/(auth)/login');
+            } catch (error) {
+              console.error('Logout error:', error);
+              // Hata durumunda da state'i temizle ve login'e yönlendir
+              dispatch(logout());
+              router.replace('/(auth)/login');
+            }
           },
           style: 'destructive',
         },

@@ -60,14 +60,13 @@ export default function CreateListingScreen() {
       return;
     }
     
-    // if (images.length === 0) {
-    //   Alert.alert('Error', 'Please add at least one image');
-    //   return;
-    // }
+    if (images.length === 0) {
+      Alert.alert('Error', 'Please add at least one image');
+      return;
+    }
     
     setLoading(true);
     
-    // Simulate API call
     setTimeout(() => {
       const newListing = {
         id: `listing-${Date.now()}`,

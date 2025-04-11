@@ -1,93 +1,137 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
-import { useSelector } from 'react-redux';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { RootState } from '../../../store';
+import { updateUserProfile } from '../../../store/slices/authSlice';
 import Button from '../../../components/Button';
 import { Star, MapPin, PenTool as Tool, Car, Clock, CircleCheck as CheckCircle, MessageSquare } from 'lucide-react-native';
 
+interface ProfileData {
+  _id: string;
+  fullName: string;
+  email: string;
+  userType: 'vehicle_owner' | 'mechanic';
+  tcKimlikNo: string;
+  licensePlate?: string;
+  rating: number;
+  specialties: string[];
+  profileImage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch();
+  const { token } = useSelector((state: RootState) => state.auth);
   const { listings } = useSelector((state: RootState) => state.listings);
   const { theme } = useSelector((state: RootState) => state.settings);
   
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   const isDark = theme === 'dark';
-  const isVehicleOwner = user?.userType === 'vehicle_owner';
+  const isVehicleOwner = profileData?.userType === 'vehicle_owner';
   
   // Filter listings for the current user - ALL statuses, not just open
-  const userListings = listings.filter(listing => listing.ownerId === user?.id);
+  const userListings = listings.filter(listing => listing.ownerId === profileData?._id);
+
+  useEffect(() => {
+    fetchProfileData();
+  }, [token]);
+
+  const fetchProfileData = async () => {
+    try {
+      const response = await fetch('http://192.168.157.95:5000/api/users/profile', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile data');
+      }
+
+      const data = await response.json();
+      setProfileData(data);
+      
+      // Update Redux store with profile data
+      dispatch(updateUserProfile({
+        id: data._id,
+        fullName: data.fullName,
+        email: data.email,
+        userType: data.userType,
+        licensePlate: data.licensePlate,
+        profileImage: data.profileImage,
+        rating: data.rating,
+        specialties: data.specialties,
+      }));
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Profile fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const handleViewListing = (listingId: string) => {
     router.push(`/listing/${listingId}`);
   };
 
-  // Mock reviews for mechanic
-  const mockReviews = [
-    { id: '1', userId: '101', userName: 'Mehmet K.', rating: 5, comment: 'Great service, fixed my car quickly.', date: '2023-05-15' },
-    { id: '2', userId: '102', userName: 'Ayşe T.', rating: 4, comment: 'Professional and knowledgeable.', date: '2023-04-22' },
-    { id: '3', userId: '103', userName: 'Ali R.', rating: 5, comment: 'Fixed my brakes perfectly.', date: '2023-06-10' },
-  ];
-
-  // Mock bids for mechanic
-  const mockBids = !isVehicleOwner ? [
-    { 
-      id: 'bid1',
-      listingId: '1',
-      vehicleLicensePlate: 'ABC123',
-      description: 'Brake system repair',
-      amount: 750,
-      status: 'accepted',
-      createdAt: '2023-06-20T12:30:00Z'
-    },
-    {
-      id: 'bid2',
-      listingId: '2',
-      vehicleLicensePlate: 'XYZ789',
-      description: 'Engine diagnostics and repair',
-      amount: 1200,
-      status: 'pending',
-      createdAt: '2023-06-21T15:45:00Z'
-    },
-    {
-      id: 'bid3',
-      listingId: '3',
-      vehicleLicensePlate: 'DEF456',
-      description: 'Timing belt replacement',
-      amount: 900,
-      status: 'rejected',
-      createdAt: '2023-06-19T09:15:00Z'
-    }
-  ] : [];
-
   const handleEditProfile = () => {
     router.push('../edit-profile');
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+        <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centerContent, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+        <Text style={[styles.errorText, { color: isDark ? '#ff6b6b' : '#e74c3c' }]}>{error}</Text>
+        <Button
+          title="Retry"
+          onPress={fetchProfileData}
+          style={{ marginTop: 16 }}
+        />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
       <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
         <Image
-          source={{ uri: user?.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
+          source={{ uri: profileData?.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
           style={styles.profileImage}
         />
-        <Text style={[styles.name, { color: isDark ? '#fff' : '#000' }]}>{user?.fullName}</Text>
-        
+        <Text style={[styles.name, { color: isDark ? '#fff' : '#000' }]}>{profileData?.fullName}</Text>
+{/*         
         <View style={styles.infoRow}>
           <MapPin size={16} color="#3498db" />
-          <Text style={[styles.infoText, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{user?.location || 'No location set'}</Text>
-        </View>
+          <Text style={[styles.infoText, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{'No location set'}</Text>
+        </View> */}
         
         {isVehicleOwner ? (
           <View style={styles.infoRow}>
             <Car size={16} color="#3498db" />
-            <Text style={[styles.infoText, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>License Plate: {user?.licensePlate}</Text>
+            <Text style={[styles.infoText, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>License Plate: {profileData?.licensePlate}</Text>
           </View>
         ) : (
           <View style={styles.ratingContainer}>
             <Star size={16} color="#f1c40f" fill="#f1c40f" />
-            <Text style={styles.rating}>{user?.rating?.toFixed(1) || '0.0'}</Text>
-            <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>({mockReviews.length} reviews)</Text>
+            <Text style={styles.rating}>{profileData?.rating?.toFixed(1) || '0.0'}</Text>
+            <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>(0 reviews)</Text>
           </View>
         )}
         
@@ -156,74 +200,15 @@ export default function ProfileScreen() {
       ) : (
         <>
           <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
-            <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>My Bids</Text>
-            {mockBids.map((bid) => (
-              <TouchableOpacity 
-                key={bid.id} 
-                style={[styles.bidItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}
-                onPress={() => router.push(`/listing/${bid.listingId}`)}
-              >
-                <View style={styles.bidHeader}>
-                  <Text style={[styles.bidTitle, { color: isDark ? '#fff' : '#000' }]}>{bid.vehicleLicensePlate}</Text>
-                  <View style={[
-                    styles.statusBadge,
-                    bid.status === 'accepted' ? styles.acceptedStatus :
-                    bid.status === 'rejected' ? styles.rejectedStatus :
-                    styles.pendingStatus
-                  ]}>
-                    <Text style={styles.statusText}>{bid.status}</Text>
-                  </View>
-                </View>
-                <Text style={[styles.bidDescription, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{bid.description}</Text>
-                <View style={styles.bidFooter}>
-                  <Text style={[styles.bidAmount, { color: isDark ? '#2ecc71' : '#27ae60' }]}>₺{bid.amount}</Text>
-                  <Text style={[styles.bidDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
-                    {new Date(bid.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
             <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Specialties</Text>
             <View style={styles.specialtiesContainer}>
-              <View style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#e0e0e0' }]}>
-                <Tool size={14} color={isDark ? '#fff' : '#000'} />
-                <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>Engine Repair</Text>
-              </View>
-              <View style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#e0e0e0' }]}>
-                <Tool size={14} color={isDark ? '#fff' : '#000'} />
-                <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>Electrical Systems</Text>
-              </View>
-              <View style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#e0e0e0' }]}>
-                <Tool size={14} color={isDark ? '#fff' : '#000'} />
-                <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>Brake Systems</Text>
-              </View>
-            </View>
-          </View>
-          
-          <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
-            <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Reviews</Text>
-            {mockReviews.map((review) => (
-              <View key={review.id} style={[styles.reviewItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}>
-                <View style={styles.reviewHeader}>
-                  <Text style={[styles.reviewerName, { color: isDark ? '#fff' : '#000' }]}>{review.userName}</Text>
-                  <View style={styles.reviewRating}>
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        size={14}
-                        color="#f1c40f"
-                        fill={i < review.rating ? "#f1c40f" : "transparent"}
-                      />
-                    ))}
-                  </View>
+              {profileData?.specialties.map((specialty, index) => (
+                <View key={index} style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#e0e0e0' }]}>
+                  <Tool size={14} color={isDark ? '#fff' : '#000'} />
+                  <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>{specialty}</Text>
                 </View>
-                <Text style={[styles.reviewComment, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{review.comment}</Text>
-                <Text style={[styles.reviewDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>{new Date(review.date).toLocaleDateString()}</Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         </>
       )}
@@ -234,6 +219,14 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     alignItems: 'center',
@@ -304,31 +297,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 14,
   },
-  reviewItem: {
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  reviewerName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  reviewRating: {
-    flexDirection: 'row',
-  },
-  reviewComment: {
-    marginBottom: 8,
-    fontSize: 14,
-  },
-  reviewDate: {
-    fontSize: 12,
-  },
   listingItem: {
     padding: 16,
     borderRadius: 8,
@@ -379,46 +347,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     fontSize: 14,
-  },
-  bidItem: {
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  bidHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  bidTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  bidDescription: {
-    marginBottom: 12,
-    fontSize: 14,
-  },
-  bidFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  bidAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  bidDate: {
-    fontSize: 12,
-  },
-  acceptedStatus: {
-    backgroundColor: '#2ecc71',
-  },
-  rejectedStatus: {
-    backgroundColor: '#e74c3c',
-  },
-  pendingStatus: {
-    backgroundColor: '#f1c40f',
   },
   bidsCounter: {
     flexDirection: 'row',

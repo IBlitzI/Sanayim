@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Alert, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
@@ -11,19 +11,30 @@ import { ArrowLeft, Camera, Plus, X } from 'lucide-react-native';
 export default function EditProfileScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { theme } = useSelector((state: RootState) => state.settings);
   
-  const [fullName, setFullName] = useState(user?.fullName || '');
-  const [location, setLocation] = useState(user?.location || '');
-  const [licensePlate, setLicensePlate] = useState(user?.licensePlate || '');
-  const [profileImage, setProfileImage] = useState(user?.profileImage || '');
+  const [fullName, setFullName] = useState('');
+  const [location, setLocation] = useState('');
+  const [licensePlate, setLicensePlate] = useState('');
+  const [profileImage, setProfileImage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [specialties, setSpecialties] = useState(user?.specialties || []);
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [newSpecialty, setNewSpecialty] = useState('');
   
   const isDark = theme === 'dark';
   const isVehicleOwner = user?.userType === 'vehicle_owner';
+
+  // Redux'tan gelen profil verilerini input alanlarına doldur
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName || '');
+      setLocation(user.location || '');
+      setLicensePlate(user.licensePlate || '');
+      setProfileImage(user.profileImage || '');
+      setSpecialties(user.specialties || []);
+    }
+  }, [user]);
   
   const pickImage = async () => {
     try {
@@ -55,7 +66,7 @@ export default function EditProfileScreen() {
     setSpecialties(newSpecialties);
   };
   
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!fullName) {
       Alert.alert('Error', 'Please enter your full name');
       return;
@@ -68,17 +79,49 @@ export default function EditProfileScreen() {
     
     setLoading(true);
     
-    // Update profile with specialties
-    setTimeout(() => {
-      dispatch(updateUserProfile({
-        fullName,
-        location,
-        licensePlate: isVehicleOwner ? licensePlate : undefined,
-        profileImage,
-        specialties: !isVehicleOwner ? specialties : undefined,
-      }));
+    try {
+      const formData = new FormData();
       
-      setLoading(false);
+      // Add text fields
+      formData.append('fullName', fullName);
+      if (location) formData.append('location', location);
+      if (isVehicleOwner && licensePlate) {
+        formData.append('licensePlate', licensePlate);
+      }
+      if (!isVehicleOwner && specialties.length > 0) {
+        // Convert specialties array to JSON string since FormData doesn't handle arrays directly
+        formData.append('specialties', JSON.stringify(specialties));
+      }
+
+      // Add profile image if it's changed and is a local file (starts with 'file://')
+      if (profileImage && profileImage.startsWith('file://')) {
+        const imageFileName = profileImage.split('/').pop() || 'profile.jpg';
+        formData.append('profileImage', {
+          uri: profileImage,
+          name: imageFileName,
+          type: 'image/jpeg', // You might want to detect the actual mime type
+        } as any);
+      }
+
+      const response = await fetch('http://192.168.157.95:5000/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type - it will be automatically set with boundary for FormData
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      const updatedProfile = await response.json();
+      
+      // Update Redux state
+      dispatch(updateUserProfile(updatedProfile));
+      
       Alert.alert(
         'Success',
         'Your profile has been updated successfully',
@@ -89,7 +132,15 @@ export default function EditProfileScreen() {
           },
         ]
       );
-    }, 1000);
+    } catch (error) {
+      console.error('Profile update error:', error);
+      Alert.alert(
+        'Error',
+        'Failed to update profile. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

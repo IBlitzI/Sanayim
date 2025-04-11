@@ -1,54 +1,144 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Linking, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
+import * as ImagePicker from 'expo-image-picker';
+import { Camera } from 'lucide-react-native';
 
 export default function SignupScreen() {
   const router = useRouter();
-  
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [licensePlate, setLicensePlate] = useState('');
+  const [tcKimlikNo, setTcKimlikNo] = useState('');
+  const [kvkkConsent, setKvkkConsent] = useState(false);
   const [userType, setUserType] = useState<'vehicle_owner' | 'mechanic'>('vehicle_owner');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
-  const handleSignup = () => {
-    if (!fullName || !email || !password || (userType === 'vehicle_owner' && !licensePlate)) {
-      setError('Please fill in all required fields');
-      return;
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const handleSignup = async () => {
+    if (userType === 'vehicle_owner') {
+      if (!fullName || !email || !password || !licensePlate || !tcKimlikNo || !kvkkConsent) {
+        setError('Please fill in all required fields and accept KVKK terms');
+        return;
+      }
     }
 
     setLoading(true);
     setError(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    if (userType === 'mechanic') {
+      const subject = 'Sanayim App Mechanic Başvuru';
+      const body = `Merhaba,
+
+Ben Sanayim uygulamasına mekanik olarak başvurmak istiyorum.
+
+Lütfen aşağıdaki bilgileri doldurunuz:
+
+Ad Soyad:
+İletişim Numarası:
+Deneyim Yılı:
+Uzmanlaştığı Araç Tipleri:
+Adres:
+Referanslar (Varsa):
+
+Teşekkürler.`;
+
+      const mailtoLink = `mailto:baskinmehmetali@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      Linking.openURL(mailtoLink);
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+
+      // Add text fields
+      formData.append('fullName', fullName);
+      formData.append('email', email);
+      formData.append('password', password);
+      formData.append('licensePlate', licensePlate);
+      formData.append('tcKimlikNo', tcKimlikNo);
+      formData.append('userType', 'vehicle_owner');
+      formData.append('kvkkConsent', String(kvkkConsent));
+
+      // Add profile image if selected
+      if (profileImage) {
+        const imageFileName = profileImage.split('/').pop() || 'profile.jpg';
+        formData.append('profileImage', {
+          uri: profileImage,
+          name: imageFileName,
+          type: 'image/jpeg',
+        } as any);
+      }
+
+      const response = await fetch('http://192.168.157.95:5000/api/users/register', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      // Registration successful
       router.replace('/(auth)/login');
-    }, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during registration');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1631467886198-acfcacd3d494?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80' }} 
-            style={styles.logo} 
-          />
+          <TouchableOpacity style={styles.profileImageContainer} onPress={pickImage}>
+            <Image
+              source={profileImage ? { uri: profileImage } : { uri: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
+              style={styles.logo}
+            />
+            <View style={styles.cameraIconContainer}>
+              <Camera size={20} color="#fff" />
+            </View>
+          </TouchableOpacity>
           <Text style={styles.appName}>Sanayim</Text>
         </View>
 
         <View style={styles.formContainer}>
           {error && <Text style={styles.errorText}>{error}</Text>}
-          
+
           <View style={styles.userTypeContainer}>
             <TouchableOpacity
               style={[
@@ -64,7 +154,7 @@ export default function SignupScreen() {
                 Vehicle Owner
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[
                 styles.userTypeButton,
@@ -80,48 +170,80 @@ export default function SignupScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-          
-          <Input
-            label="Full Name"
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Enter your full name"
-            autoCapitalize="words"
-          />
-          
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email"
-            keyboardType="email-address"
-          />
-          
-          <Input
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Create a password"
-            secureTextEntry
-          />
-          
-          {userType === 'vehicle_owner' && (
-            <Input
-              label="Vehicle License Plate"
-              value={licensePlate}
-              onChangeText={setLicensePlate}
-              placeholder="Enter your license plate"
-              autoCapitalize="characters"
-            />
+
+          {userType === 'vehicle_owner' ? (
+            <>
+              <Input
+                label="Full Name"
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Enter your full name"
+                autoCapitalize="words"
+              />
+
+              <Input
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
+                keyboardType="email-address"
+              />
+
+              <Input
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Create a password"
+                secureTextEntry
+              />
+
+              <Input
+                label="TC Kimlik No"
+                value={tcKimlikNo}
+                onChangeText={setTcKimlikNo}
+                placeholder="Enter your TC Kimlik No"
+                keyboardType="numeric"
+              />
+
+              <Input
+                label="Vehicle License Plate"
+                value={licensePlate}
+                onChangeText={setLicensePlate}
+                placeholder="Enter your license plate"
+                autoCapitalize="characters"
+              />
+
+              <TouchableOpacity
+                style={styles.kvkkContainer}
+                onPress={() => setKvkkConsent(!kvkkConsent)}
+              >
+                <View style={[styles.checkbox, kvkkConsent && styles.checkboxChecked]}>
+                  {kvkkConsent && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.kvkkText}>
+                  Kişisel verilerimin işlenmesine ilişkin {' '}
+                  <Text style={styles.kvkkLink} onPress={() => {/* KVKK metnini göster */ }}>
+                    Aydınlatma Metni
+                  </Text>
+                  'ni okudum ve kabul ediyorum.
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.mechanicContainer}>
+              <Text style={styles.mechanicText}>
+                Mekanik olarak başvurmak için aşağıdaki butonu kullanarak bize mail gönderebilirsiniz.
+              </Text>
+            </View>
           )}
-          
+
           <Button
-            title="Sign Up"
+            title={userType === 'mechanic' ? "Mail ile Başvuru Yap" : "Sign Up"}
             onPress={handleSignup}
             loading={loading}
           />
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.loginLink}
             onPress={() => router.push('/(auth)/login')}
           >
@@ -149,10 +271,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
   },
+  profileImageContainer: {
+    position: 'relative',
+  },
   logo: {
     width: 100,
     height: 100,
     borderRadius: 50,
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#3498db',
+    borderRadius: 20,
+    padding: 5,
   },
   appName: {
     fontSize: 28,
@@ -202,5 +335,48 @@ const styles = StyleSheet.create({
   loginTextBold: {
     color: '#3498db',
     fontWeight: '600',
+  },
+  kvkkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderColor: '#3498db',
+    marginRight: 10,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#3498db',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  kvkkText: {
+    flex: 1,
+    color: '#bdc3c7',
+    fontSize: 12,
+  },
+  kvkkLink: {
+    color: '#3498db',
+    textDecorationLine: 'underline',
+  },
+  mechanicContainer: {
+    padding: 20,
+    backgroundColor: '#1e272e',
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  mechanicText: {
+    color: '#bdc3c7',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

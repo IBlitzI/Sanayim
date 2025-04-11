@@ -29,6 +29,12 @@ const initialState: AuthState = {
   error: null,
 };
 
+// Helper function to get auth header
+export const getAuthHeader = (token: string) => ({
+  'Authorization': `Bearer ${token}`,
+  'Content-Type': 'application/json'
+});
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -44,7 +50,7 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.error = null;
 
-      // AsyncStorage'a token ve user verisini kaydet
+      // Persist auth data
       AsyncStorage.setItem('auth_token', action.payload.token);
       AsyncStorage.setItem('user_data', JSON.stringify(action.payload.user));
     },
@@ -56,14 +62,24 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
+      state.error = null;
       
-      // AsyncStorage'dan token ve user verisini sil
+      // Clear persisted auth data
       AsyncStorage.removeItem('auth_token');
       AsyncStorage.removeItem('user_data');
+    },
+    // Initialize auth state from storage
+    initializeAuth: (state, action: PayloadAction<{ user: User; token: string } | null>) => {
+      if (action.payload) {
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.isAuthenticated = true;
+      }
     },
     updateUserProfile: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
+        AsyncStorage.setItem('user_data', JSON.stringify(state.user));
       }
     },
     clearError: (state) => {
@@ -72,6 +88,14 @@ const authSlice = createSlice({
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, updateUserProfile, clearError } = authSlice.actions;
+export const { 
+  loginStart, 
+  loginSuccess, 
+  loginFailure, 
+  logout, 
+  initializeAuth,
+  updateUserProfile, 
+  clearError 
+} = authSlice.actions;
 
 export default authSlice.reducer;

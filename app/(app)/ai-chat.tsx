@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { Send, ArrowLeft } from 'lucide-react-native';
+import { Send, ArrowLeft, Camera } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function AIChatScreen() {
   const router = useRouter();
   const { theme } = useSelector((state: RootState) => state.settings);
+  const { token } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [messages, setMessages] = useState<Array<{ id: string; content: string; fromUser: boolean }>>([
@@ -17,12 +19,31 @@ export default function AIChatScreen() {
       fromUser: false 
     }
   ]);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
   const isDark = theme === 'dark';
   const flatListRef = useRef<FlatList>(null);
 
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+    }
+  };
+
   const handleSendMessage = async () => {
-    if (!messageText.trim() || loading) return;
+    if ((!messageText.trim() && !selectedImage) || loading) return;
 
     const userMessage = {
       id: Date.now().toString(),
@@ -34,27 +55,92 @@ export default function AIChatScreen() {
     setMessageText('');
     setLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage = {
+    try {
+      const formData = new FormData();
+      
+      // Send only the current message since history is handled by the backend
+      formData.append('message', messageText.trim());
+      
+      if (selectedImage) {
+        const imageUriParts = selectedImage.split('.');
+        const fileType = imageUriParts[imageUriParts.length - 1];
+        
+        formData.append('image', {
+          uri: selectedImage,
+          name: `photo.${fileType}`,
+          type: `image/${fileType}`,
+        } as any);
+      }
+
+      const response = await fetch("http://192.168.157.95:5000/api/gemini/chat", {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        const aiMessage = {
+          id: (Date.now() + 1).toString(),
+          content: data.message,
+          fromUser: false,
+        };
+
+        setMessages(prev => [...prev, aiMessage]);
+      } else {
+        throw new Error('API response indicates failure');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      const errorMessage = {
         id: (Date.now() + 1).toString(),
-        content: getAIResponse(userMessage.content),
+        content: `Bir hata oluştu: ${error}`,
         fromUser: false,
       };
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setLoading(false);
-    }, 1000);
+      setSelectedImage(null);
+    }
   };
 
-  const getAIResponse = (userMessage: string) => {
-    const responses = [
-      "Anladım. Bu sorununuz için öncelikle bir mekanik kontrol yapılması gerekebilir.",
-      "Bu durumda size en yakın yetkili servisi önerebilirim.",
-      "Araç bakımlarını düzenli yaptırmak bu tür sorunları önleyebilir.",
-      "Bu belirtiler genellikle [parça] ile ilgili sorunları işaret eder.",
-      "Size yardımcı olabilecek uzman bir mekanik önerebilirim.",
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
+  const handleClearHistory = async () => {
+    try {
+      const response = await fetch("http://192.168.157.95:5000/api/gemini/history", {
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Reset local messages to initial state
+      setMessages([{ 
+        id: '1', 
+        content: 'Merhaba! Ben Sanayim AI. Size araç bakımı ve onarımı konusunda yardımcı olabilirim. Ne sormak istersiniz?', 
+        fromUser: false 
+      }]);
+    } catch (error) {
+      console.error('Error clearing history:', error);
+      // Show error message in chat
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        content: 'Geçmiş silinirken bir hata oluştu.',
+        fromUser: false
+      }]);
+    }
   };
 
   return (
@@ -63,22 +149,33 @@ export default function AIChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-    
+      <View style={styles.header}> 
+        <TouchableOpacity 
+          style={[styles.clearButton, { backgroundColor: isDark ? '#2c3e50' : '#3498db' }]}
+          onPress={handleClearHistory}
+        >
+          <Text style={styles.clearButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         ref={flatListRef}
         data={messages}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesContainer}
+        contentContainerStyle={[ 
+          styles.messagesContainer, 
+          { paddingBottom: selectedImage ? 120 : 80 } // Add extra padding when image is selected
+        ]}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         renderItem={({ item }) => (
-          <View style={[
-            styles.messageBubble,
-            item.fromUser ? styles.userMessage : styles.aiMessage,
-            { backgroundColor: item.fromUser ? '#3498db' : (isDark ? '#2c3e50' : '#ecf0f1') }
+          <View style={[ 
+            styles.messageBubble, 
+            item.fromUser ? styles.userMessage : styles.aiMessage, 
+            { backgroundColor: item.fromUser ? '#3498db' : (isDark ? '#2c3e50' : '#ecf0f1') } 
           ]}>
-            <Text style={[
-              styles.messageText,
-              { color: item.fromUser ? '#fff' : (isDark ? '#fff' : '#2c3e50') }
+            <Text style={[ 
+              styles.messageText, 
+              { color: item.fromUser ? '#fff' : (isDark ? '#fff' : '#2c3e50') } 
             ]}>
               {item.content}
             </Text>
@@ -87,35 +184,60 @@ export default function AIChatScreen() {
       />
 
       <View style={[styles.inputContainer, { borderTopColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
-        <TextInput
-          style={[
-            styles.input,
-            { 
-              backgroundColor: isDark ? '#2c3e50' : '#f5f5f5',
-              color: isDark ? '#fff' : '#000',
-            }
-          ]}
-          value={messageText}
-          onChangeText={setMessageText}
-          placeholder="Sorunuzu yazın..."
-          placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
-          multiline
-        />
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            !messageText.trim() && styles.sendButtonDisabled,
-            { backgroundColor: messageText.trim() ? '#3498db' : (isDark ? '#95a5a6' : '#bdc3c7') }
-          ]}
-          onPress={handleSendMessage}
-          disabled={!messageText.trim() || loading}
-        >
-          <Send size={20} color="#fff" />
-        </TouchableOpacity>
+        {selectedImage && (
+          <View style={styles.selectedImageWrapper}>
+            <View style={styles.selectedImageContainer}>
+              <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+              <TouchableOpacity
+                style={styles.removeImageButton}
+                onPress={() => setSelectedImage(null)}
+              >
+                <Text style={styles.removeImageText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.inputRow}>
+          <TouchableOpacity
+            style={[styles.imageButton, { backgroundColor: isDark ? '#2c3e50' : '#f5f5f5' }]}
+            onPress={pickImage}
+          >
+            <Camera size={20} color={isDark ? '#fff' : '#000'} />
+          </TouchableOpacity>
+
+          <TextInput
+            style={[
+              styles.input,
+              { 
+                backgroundColor: isDark ? '#2c3e50' : '#f5f5f5',
+                color: isDark ? '#fff' : '#000',
+              }
+            ]}
+            value={messageText}
+            onChangeText={setMessageText}
+            placeholder="Sorunuzu yazın..."
+            placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
+            multiline
+          />
+          
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              (!messageText.trim() && !selectedImage) && styles.sendButtonDisabled,
+              { backgroundColor: (messageText.trim() || selectedImage) ? '#3498db' : (isDark ? '#95a5a6' : '#bdc3c7') }
+            ]}
+            onPress={handleSendMessage}
+            disabled={(!messageText.trim() && !selectedImage) || loading}
+          >
+            <Send size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -124,8 +246,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     padding: 16,
-    borderBottomWidth: 1,
   },
   backButton: {
     padding: 8,
@@ -135,9 +257,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
     textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   placeholder: {
     width: 40,
+  },
+  clearButton: {
+    width: 36,
+    borderRadius: 18,
+    backgroundColor: '#3498db',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  clearButtonText: {
+    color: '#fff',
+    fontSize: 35,
+    fontWeight: '600',
+    marginTop: -2,
   },
   messagesContainer: {
     padding: 16,
@@ -161,10 +299,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   inputContainer: {
-    flexDirection: 'row',
-    padding: 12,
     borderTopWidth: 1,
+  },
+  inputRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    padding: 12,
   },
   input: {
     flex: 1,
@@ -183,5 +323,46 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.7,
+  },
+  imageButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  selectedImageWrapper: {
+    width: '100%',
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2c2c2c',
+  },
+  selectedImageContainer: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+    marginBottom: 8,
+  },
+  selectedImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#e74c3c',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeImageText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
