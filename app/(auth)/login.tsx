@@ -64,13 +64,17 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1631467886198-acfcacd3d494?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80' }} 
-            style={styles.logo} 
-          />
-          <Text style={styles.appName}>Sanayim</Text>
+          <View style={styles.logoWrapper}>
+            <Image 
+              source={require('../../assets/images/Logo2.png')}
+              style={styles.logo} 
+              resizeMode="cover"
+            />
+          </View>
+          <Text style={styles.appName}>SANAYIM</Text>
+          <Text style={styles.tagline}>Your Automotive Service Partner</Text>
         </View>
-
+        
         <View style={styles.formContainer}>
           {error && <Text style={styles.errorText}>{error}</Text>}
           
@@ -117,26 +121,46 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 50,
+  },
+  logoWrapper: {
+    width: 140,
+    height: 140,
   },
   logo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: '100%',
+    height: '100%',
+    borderRadius: 67,
   },
   appName: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 38,
+    fontWeight: '800',
     color: '#fff',
-    marginTop: 16,
+    marginTop: 20,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(52, 152, 219, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  tagline: {
+    fontSize: 16,
+    color: '#3498db',
+    marginTop: 8,
+    fontWeight: '500',
+    opacity: 0.9,
   },
   formContainer: {
     width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 15,
+    padding: 20,
+    marginTop: 20,
   },
   errorText: {
     color: '#e74c3c',

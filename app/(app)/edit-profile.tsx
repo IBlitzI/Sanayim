@@ -6,7 +6,67 @@ import { RootState } from '../../store';
 import { updateUserProfile } from '../../store/slices/authSlice';
 import Button from '../../components/Button';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, Camera, Plus, X } from 'lucide-react-native';
+import { ArrowLeft, Camera, ChevronDown, ChevronUp } from 'lucide-react-native';
+
+const SPECIALTY_CATEGORIES = {
+  'Motor ve Güç Aktarımı': [
+    'Motor tamiri ve bakımı',
+    'Şanzıman (Manuel/Otomatik)',
+    'Debriyaj sistemleri',
+    'Turbo sistemleri',
+    'Yakıt enjeksiyon sistemleri',
+    'Egzoz sistemleri',
+    'Soğutma sistemleri'
+  ],
+  'Elektrik ve Elektronik': [
+    'Araç elektrik sistemleri',
+    'ECU (Motor kontrol ünitesi)',
+    'Diagnostik sistemler',
+    'Aydınlatma sistemleri',
+    'Klima sistemleri',
+    'Akü ve şarj sistemleri',
+    'Start-stop sistemleri'
+  ],
+  'Süspansiyon ve Direksiyon': [
+    'Süspansiyon sistemleri',
+    'Direksiyon sistemleri',
+    'Rot ve rotbaşı',
+    'Amortisör değişimi',
+    'Aks ve rulman',
+    'Lastik ve balans'
+  ],
+  'Fren Sistemleri': [
+    'ABS sistemleri',
+    'Fren bakım ve onarımı',
+    'Disk ve balatalar',
+    'Hidrolik sistemler'
+  ],
+  'Kaporta ve Boya': [
+    'Kaporta onarımı',
+    'Boya ve vernik',
+    'Dolu hasarı onarımı',
+    'PDR (Boyasız göçük düzeltme)'
+  ],
+  'Özel Sistemler': [
+    'Hibrit sistemler',
+    'Elektrikli araç sistemleri',
+    'LPG/CNG sistemleri',
+    'Performans modifikasyonları'
+  ],
+  'Araç Tiplerine Göre Uzmanlık': [
+    'Binek araçlar',
+    'Ticari araçlar',
+    'Ağır vasıta',
+    'Lüks/Spor araçlar',
+    'Klasik araçlar'
+  ],
+  'Periyodik Bakım': [
+    'Motor yağı değişimi',
+    'Filtre değişimleri',
+    'Triger seti değişimi',
+    'Genel kontrol ve bakım'
+  ]
+};
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -20,12 +80,11 @@ export default function EditProfileScreen() {
   const [profileImage, setProfileImage] = useState('');
   const [loading, setLoading] = useState(false);
   const [specialties, setSpecialties] = useState<string[]>([]);
-  const [newSpecialty, setNewSpecialty] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   
   const isDark = theme === 'dark';
   const isVehicleOwner = user?.userType === 'vehicle_owner';
 
-  // Redux'tan gelen profil verilerini input alanlarına doldur
   useEffect(() => {
     if (user) {
       setFullName(user.fullName || '');
@@ -54,26 +113,35 @@ export default function EditProfileScreen() {
     }
   };
 
-  const addSpecialty = () => {
-    if (newSpecialty.trim()) {
-      setSpecialties([...specialties, newSpecialty.trim()]);
-      setNewSpecialty('');
-    }
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
   };
 
-  const removeSpecialty = (index: number) => {
-    const newSpecialties = specialties.filter((_, i) => i !== index);
-    setSpecialties(newSpecialties);
+  const toggleSpecialty = (specialty: string) => {
+    setSpecialties(prev => 
+      prev.includes(specialty)
+        ? prev.filter(s => s !== specialty)
+        : [...prev, specialty]
+    );
   };
   
   const handleSave = async () => {
     if (!fullName) {
-      Alert.alert('Error', 'Please enter your full name');
+      Alert.alert('Hata', 'Lütfen adınızı giriniz');
       return;
     }
     
     if (isVehicleOwner && !licensePlate) {
-      Alert.alert('Error', 'Please enter your license plate');
+      Alert.alert('Hata', 'Lütfen plaka numaranızı giriniz');
+      return;
+    }
+
+    if (!token) {
+      Alert.alert('Hata', 'Oturum süresi dolmuş olabilir. Lütfen tekrar giriş yapın.');
       return;
     }
     
@@ -82,24 +150,33 @@ export default function EditProfileScreen() {
     try {
       const formData = new FormData();
       
-      // Add text fields
+      // Temel alanları ekle
       formData.append('fullName', fullName);
-      if (location) formData.append('location', location);
+      
+      // Lokasyon varsa ekle
+      if (location) {
+        formData.append('location', location);
+      }
+
+      // Araç sahibi ise plaka ekle
       if (isVehicleOwner && licensePlate) {
         formData.append('licensePlate', licensePlate);
       }
+
+      // Tamirci ise uzmanlıkları ekle
       if (!isVehicleOwner && specialties.length > 0) {
-        // Convert specialties array to JSON string since FormData doesn't handle arrays directly
         formData.append('specialties', JSON.stringify(specialties));
       }
 
-      // Add profile image if it's changed and is a local file (starts with 'file://')
+      // Profil resmi değişmişse ve yerel dosya ise ekle
       if (profileImage && profileImage.startsWith('file://')) {
         const imageFileName = profileImage.split('/').pop() || 'profile.jpg';
+        const imageType = imageFileName.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+        
         formData.append('profileImage', {
           uri: profileImage,
           name: imageFileName,
-          type: 'image/jpeg', // You might want to detect the actual mime type
+          type: imageType,
         } as any);
       }
 
@@ -108,35 +185,34 @@ export default function EditProfileScreen() {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${token}`,
-          // Don't set Content-Type - it will be automatically set with boundary for FormData
         },
         body: formData,
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to update profile');
+        throw new Error(responseData.message || 'Profil güncellenirken bir hata oluştu');
       }
 
-      const updatedProfile = await response.json();
-      
-      // Update Redux state
-      dispatch(updateUserProfile(updatedProfile));
+      // Redux state'i güncelle
+      dispatch(updateUserProfile(responseData));
       
       Alert.alert(
-        'Success',
-        'Your profile has been updated successfully',
+        'Başarılı',
+        'Profiliniz başarıyla güncellendi',
         [
           {
-            text: 'OK',
+            text: 'Tamam',
             onPress: () => router.back(),
           },
         ]
       );
     } catch (error) {
-      console.error('Profile update error:', error);
+      console.error('Profil güncelleme hatası:', error);
       Alert.alert(
-        'Error',
-        'Failed to update profile. Please try again.'
+        'Hata',
+        error instanceof Error ? error.message : 'Profil güncellenirken bir hata oluştu'
       );
     } finally {
       setLoading(false);
@@ -228,33 +304,63 @@ export default function EditProfileScreen() {
           
           {!isVehicleOwner && (
             <View style={styles.specialtiesContainer}>
-              <Text style={[styles.inputLabel, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Specialties</Text>
-              <View style={styles.specialtiesList}>
-                {specialties.map((specialty, index) => (
-                  <View key={index} style={[styles.specialtyChip, { backgroundColor: isDark ? '#2c3e50' : '#e0e0e0' }]}>
-                    <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>{specialty}</Text>
-                    <TouchableOpacity onPress={() => removeSpecialty(index)}>
-                      <X size={16} color={isDark ? '#fff' : '#000'} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.addSpecialtyContainer}>
-                <TextInput
-                  style={[styles.input, { flex: 1, marginRight: 8 }]}
-                  value={newSpecialty}
-                  onChangeText={setNewSpecialty}
-                  placeholder="Add new specialty"
-                  placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
-                />
-                <TouchableOpacity 
-                  style={[styles.addButton, { opacity: newSpecialty.trim() ? 1 : 0.5 }]}
-                  onPress={addSpecialty}
-                  disabled={!newSpecialty.trim()}
-                >
-                  <Plus size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
+              <Text style={[styles.inputLabel, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Uzmanlık Alanları</Text>
+              <Text style={[styles.specialtiesNote, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                Aşağıdaki kategorilerden uzmanlık alanlarınızı seçin
+              </Text>
+              
+              {Object.entries(SPECIALTY_CATEGORIES).map(([category, items]) => (
+                <View key={category} style={styles.categoryContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryHeader,
+                      { backgroundColor: isDark ? '#2c3e50' : '#f0f0f0' }
+                    ]}
+                    onPress={() => toggleCategory(category)}
+                  >
+                    <Text style={[styles.categoryTitle, { color: isDark ? '#fff' : '#000' }]}>
+                      {category}
+                    </Text>
+                    {expandedCategories.includes(category) ? (
+                      <ChevronUp size={20} color={isDark ? '#fff' : '#000'} />
+                    ) : (
+                      <ChevronDown size={20} color={isDark ? '#fff' : '#000'} />
+                    )}
+                  </TouchableOpacity>
+                  
+                  {expandedCategories.includes(category) && (
+                    <View style={styles.specialtiesList}>
+                      {items.map((specialty) => (
+                        <TouchableOpacity
+                          key={specialty}
+                          style={[
+                            styles.specialtyChip,
+                            { 
+                              backgroundColor: specialties.includes(specialty)
+                                ? '#3498db'
+                                : isDark ? '#34495e' : '#e0e0e0'
+                            }
+                          ]}
+                          onPress={() => toggleSpecialty(specialty)}
+                        >
+                          <Text 
+                            style={[
+                              styles.specialtyText,
+                              { 
+                                color: specialties.includes(specialty)
+                                  ? '#fff'
+                                  : isDark ? '#ecf0f1' : '#2c3e50'
+                              }
+                            ]}
+                          >
+                            {specialty}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ))}
             </View>
           )}
           
@@ -353,30 +459,30 @@ const styles = StyleSheet.create({
   specialtiesList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   specialtyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 8,
     borderRadius: 16,
     marginRight: 8,
     marginBottom: 8,
   },
   specialtyText: {
-    marginRight: 8,
+    fontSize: 14,
   },
-  addSpecialtyContainer: {
+  categoryContainer: {
+    marginBottom: 12,
+  },
+  categoryHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
   },
-  addButton: {
-    backgroundColor: '#3498db',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  categoryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

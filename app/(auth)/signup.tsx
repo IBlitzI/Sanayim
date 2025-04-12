@@ -117,23 +117,22 @@ Teşekkürler.`;
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
+    <KeyboardAvoidingView 
+      style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
-          <TouchableOpacity style={styles.profileImageContainer} onPress={pickImage}>
-            <Image
-              source={profileImage ? { uri: profileImage } : { uri: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
-              style={styles.logo}
+          <View style={styles.logoWrapper}>
+            <Image 
+              source={require('../../assets/images/Logo2.png')}
+              style={styles.logo} 
+              resizeMode="cover"
             />
-            <View style={styles.cameraIconContainer}>
-              <Camera size={20} color="#fff" />
-            </View>
-          </TouchableOpacity>
-          <Text style={styles.appName}>Sanayim</Text>
+          </View>
+          <Text style={styles.appName}>SANAYIM</Text>
+          <Text style={styles.tagline}>Join Our Automotive Community</Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -264,37 +263,57 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 40,
   },
-  profileImageContainer: {
-    position: 'relative',
+  logoWrapper: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#1e1e1e',
+    padding: 3,
+    shadowColor: '#3498db',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
   logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  cameraIconContainer: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#3498db',
-    borderRadius: 20,
-    padding: 5,
+    width: '100%',
+    height: '100%',
+    borderRadius: 67,
   },
   appName: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 38,
+    fontWeight: '800',
     color: '#fff',
-    marginTop: 12,
+    marginTop: 20,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(52, 152, 219, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  tagline: {
+    fontSize: 16,
+    color: '#3498db',
+    marginTop: 8,
+    fontWeight: '500',
+    opacity: 0.9,
   },
   formContainer: {
     width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 15,
+    padding: 20,
+    marginTop: 10,
   },
   errorText: {
     color: '#e74c3c',

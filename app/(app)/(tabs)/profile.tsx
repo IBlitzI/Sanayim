@@ -21,6 +21,38 @@ interface ProfileData {
   updatedAt: string;
 }
 
+const parseSpecialties = (specialtiesData: string[]) => {
+  if (!specialtiesData || !specialtiesData.length) return [];
+
+  return specialtiesData.map(specialty => {
+    try {
+      // Parse the outer JSON string
+      const parsed = JSON.parse(specialty);
+      if (Array.isArray(parsed)) {
+        // Split items based on comma and clean up each item
+        return parsed.map(item => {
+          // Remove any extra quotes and escaping
+          const cleaned = item.replace(/\\"/g, '"').replace(/^"|"$/g, '');
+          try {
+            // Try to parse as JSON if it looks like JSON
+            if (cleaned.startsWith('[')) {
+              const parsedInner = JSON.parse(cleaned);
+              return Array.isArray(parsedInner) ? parsedInner[0] : cleaned;
+            }
+            return cleaned;
+          } catch {
+            return cleaned;
+          }
+        });
+      }
+      return [specialty];
+    } catch (e) {
+      // If parsing fails, return the original string in an array
+      return [specialty];
+    }
+  }).flat().filter(Boolean); // Flatten the array and remove any empty values
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -40,7 +72,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     fetchProfileData();
-  }, [token]);
+  }, []);
 
   const fetchProfileData = async () => {
     try {
@@ -57,7 +89,13 @@ export default function ProfileScreen() {
       }
 
       const data = await response.json();
-      setProfileData(data);
+      // Parse the specialties before setting the state
+      const parsedSpecialties = parseSpecialties(data.specialties);
+      
+      setProfileData({
+        ...data,
+        specialties: parsedSpecialties
+      });
       
       // Update Redux store with profile data
       dispatch(updateUserProfile({
@@ -68,7 +106,7 @@ export default function ProfileScreen() {
         licensePlate: data.licensePlate,
         profileImage: data.profileImage,
         rating: data.rating,
-        specialties: data.specialties,
+        specialties: parsedSpecialties,
       }));
       
     } catch (err) {
