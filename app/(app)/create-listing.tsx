@@ -11,7 +11,7 @@ import { Camera, X, ChevronDown, MessageSquare } from 'lucide-react-native';
 export default function CreateListingScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { industrialZones, selectedZone } = useSelector((state: RootState) => state.listings);
   
   const [description, setDescription] = useState('');
@@ -54,7 +54,7 @@ export default function CreateListingScreen() {
     setImages(newImages);
   };
   
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!description) {
       Alert.alert('Error', 'Please provide a description of the issue');
       return;
@@ -66,24 +66,40 @@ export default function CreateListingScreen() {
     }
     
     setLoading(true);
-    
-    setTimeout(() => {
-      const newListing = {
-        id: `listing-${Date.now()}`,
-        ownerId: user?.id || '',
-        ownerName: user?.fullName || '',
-        vehicleLicensePlate: user?.licensePlate || '',
-        description,
-        images,
-        location,
-        status: 'open',
-        createdAt: new Date().toISOString(),
-        bids: [],
-      };
-      
-      dispatch(addNewListing(newListing as any));
-      
-      setLoading(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('description', description);
+      formData.append('location', location);
+
+      // Append each image to formData
+      images.forEach((imageUri, index) => {
+        const imageUriParts = imageUri.split('.');
+        const fileExtension = imageUriParts[imageUriParts.length - 1];
+        const fileName = `image-${index + 1}.${fileExtension}`;
+
+        formData.append('files', {
+          uri: imageUri,
+          name: fileName,
+          type: `image/${fileExtension}`
+        } as any);
+      });
+
+      const response = await fetch('http://192.168.157.95:5000/api/repair-listings', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to create repair request');
+      }
+
       Alert.alert(
         'Success',
         'Your repair request has been created successfully',
@@ -94,7 +110,15 @@ export default function CreateListingScreen() {
           },
         ]
       );
-    }, 1500);
+    } catch (error) {
+      console.error('Error creating repair request:', error);
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to create repair request'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TextInput, TouchableOpacity, Alert, Dimensions, FlatList, Modal } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TextInput, TouchableOpacity, Alert, Dimensions, FlatList, Modal, ActivityIndicator } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
@@ -11,6 +11,44 @@ import { MapPin, Clock, DollarSign, Calendar } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+interface Owner {
+  _id: string;
+  fullName: string;
+  profileImage: string;
+}
+
+interface MediaFile {
+  data: string;
+  type: 'image' | 'video';
+  _id: string;
+}
+
+interface Bid {
+  _id: string;
+  mechanicId: string;
+  mechanicName: string;
+  amount: number;
+  estimatedTime: string;
+  message: string;
+  createdAt: string;
+}
+
+interface RepairListing {
+  _id: string;
+  ownerId: Owner;
+  ownerName: string;
+  vehicleLicensePlate: string;
+  description: string;
+  location: string;
+  status: 'open' | 'assigned' | 'completed';
+  mediaFiles: MediaFile[];
+  bids: Bid[];
+  selectedBidId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
 interface MediaItem {
   uri: string;
   type: 'image' | 'video';
@@ -20,43 +58,89 @@ export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
-  const { listings } = useSelector((state: RootState) => state.listings);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { theme } = useSelector((state: RootState) => state.settings);
   
+  const [listing, setListing] = useState<RepairListing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState('');
   const [estimatedTime, setEstimatedTime] = useState('');
   const [bidMessage, setBidMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isBidLoading, setBidLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
-  const flatListRef = useRef<FlatList<string>>(null);
+  const flatListRef = useRef<FlatList<MediaFile>>(null);
   
   const isDark = theme === 'dark';
-  
-  // Find the listing from Redux store
-  const listing = listings.find(l => l.id === id);
-  console.log(listing)
-  
-  if (!listing) {
+
+  useEffect(() => {
+    fetchRepairRequest();
+  }, [id]);
+
+  const fetchRepairRequest = async () => {
+    try {
+      const response = await fetch(`http://192.168.157.95:5000/api/repair-listings/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch repair request');
+      }
+
+      const result = await response.json();
+      if (result.success && result.data) {
+        console.log(result.data);
+        setListing(result.data);
+      } else {
+        throw new Error('Repair request not found');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+      <View style={[styles.container, styles.centerContent, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
         <Stack.Screen options={{ 
-          title: 'Listing Details',
+          title: 'Repair Request',
           headerStyle: { 
             backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
           },
           headerTintColor: isDark ? '#fff' : '#000',
         }} />
-        <Text style={styles.errorText}>Listing not found</Text>
+        <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+      </View>
+    );
+  }
+
+  if (error || !listing) {
+    return (
+      <View style={[styles.container, styles.centerContent, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+        <Stack.Screen options={{ 
+          title: 'Repair Request',
+          headerStyle: { 
+            backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+          },
+          headerTintColor: isDark ? '#fff' : '#000',
+        }} />
+        <Text style={[styles.errorText, { color: isDark ? '#ff6b6b' : '#e74c3c' }]}>
+          {error || 'Repair request not found'}
+        </Text>
       </View>
     );
   }
 
   const isVehicleOwner = user?.userType === 'vehicle_owner';
   const isMechanic = user?.userType === 'mechanic';
-  const isOwner = listing.ownerId === user?.id;
+  const isOwner = listing.ownerId._id === user?.id;
   
   const handlePlaceBid = () => {
     if (!bidAmount || !estimatedTime || !bidMessage) {
@@ -64,7 +148,7 @@ export default function ListingDetailScreen() {
       return;
     }
     
-    setLoading(true);
+    setBidLoading(true);
     
     // Simulate API call
     setTimeout(() => {
@@ -78,9 +162,9 @@ export default function ListingDetailScreen() {
         createdAt: new Date().toISOString(),
       };
       
-      dispatch(addBidToListing({ listingId: listing.id, bid: newBid }));
+      dispatch(addBidToListing({ listingId: listing._id, bid: newBid }));
       
-      setLoading(false);
+      setBidLoading(false);
       setBidAmount('');
       setEstimatedTime('');
       setBidMessage('');
@@ -101,10 +185,10 @@ export default function ListingDetailScreen() {
         {
           text: 'Select',
           onPress: () => {
-            dispatch(selectBid({ listingId: listing.id, bidId }));
+            dispatch(selectBid({ listingId: listing._id, bidId }));
             
             // Find the selected bid
-            const selectedBid = listing.bids.find(bid => bid.id === bidId);
+            const selectedBid = listing.bids.find(bid => bid._id === bidId);
             
             if (selectedBid) {
               // Create a conversation with the mechanic
@@ -126,19 +210,19 @@ export default function ListingDetailScreen() {
     );
   };
 
-  const renderMediaItem = ({ item, index }: { item: string; index: number }) => {
-    const isVideo = item.endsWith('.mp4');
+  const renderMediaItem = ({ item, index }: { item: MediaFile; index: number }) => {
+    const isVideo = item.type === 'video';
     return (
       <TouchableOpacity 
         onPress={() => {
-          setSelectedMedia({ uri: item, type: isVideo ? 'video' : 'image' });
+          setSelectedMedia({ uri: item.data, type: item.type });
           setModalVisible(true);
         }}
         style={styles.mediaSlide}
       >
         {isVideo ? (
           <Video
-            source={{ uri: item }}
+            source={{ uri: item.data }}
             style={styles.media}
             useNativeControls
             isLooping
@@ -146,7 +230,7 @@ export default function ListingDetailScreen() {
           />
         ) : (
           <Image
-            source={{ uri: item }}
+            source={{ uri: item.data }}
             style={styles.media}
             resizeMode="contain"
           />
@@ -155,8 +239,8 @@ export default function ListingDetailScreen() {
     );
   };
 
-  const renderThumbnail = ({ item, index }: { item: string; index: number }) => {
-    const isVideo = item.endsWith('.mp4');
+  const renderThumbnail = ({ item, index }: { item: MediaFile; index: number }) => {
+    const isVideo = item.type === 'video';
     return (
       <TouchableOpacity 
         onPress={() => {
@@ -171,7 +255,7 @@ export default function ListingDetailScreen() {
         ]}
       >
         <Image
-          source={{ uri: item }}
+          source={{ uri: item.data }}
           style={styles.thumbnailImage}
           resizeMode="cover"
         />
@@ -197,7 +281,7 @@ export default function ListingDetailScreen() {
       <View style={styles.mediaContainer}>
         <FlatList
           ref={flatListRef}
-          data={listing.images}
+          data={listing.mediaFiles}
           renderItem={renderMediaItem}
           horizontal
           pagingEnabled
@@ -215,10 +299,10 @@ export default function ListingDetailScreen() {
           })}
         />
         
-        {listing.images.length > 1 && (
+        {listing.mediaFiles?.length > 1 && (
           <>
             <View style={styles.paginationDots}>
-              {listing.images.map((_, index) => (
+              {listing.mediaFiles.map((_, index) => (
                 <View
                   key={index}
                   style={[
@@ -232,7 +316,7 @@ export default function ListingDetailScreen() {
 
             <View style={styles.thumbnailContainer}>
               <FlatList
-                data={listing.images}
+                data={listing.mediaFiles}
                 renderItem={renderThumbnail}
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -256,7 +340,7 @@ export default function ListingDetailScreen() {
           </View>
         </View>
         
-        <Text style={[styles.ownerName, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Owner: {listing.ownerName}</Text>
+        <Text style={[styles.ownerName, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Owner: {listing.ownerId.fullName}</Text>
         
         <View style={styles.infoRow}>
           <MapPin size={16} color="#3498db" />
@@ -281,7 +365,7 @@ export default function ListingDetailScreen() {
           <Text style={[styles.bidsTitle, { color: isDark ? '#fff' : '#000' }]}>Bids ({listing.bids.length})</Text>
           
           {listing.bids.map((bid) => (
-            <View key={bid.id} style={[styles.bidItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}>
+            <View key={bid._id} style={[styles.bidItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}>
               <View style={styles.bidHeader}>
                 <Text style={[styles.bidderName, { color: isDark ? '#fff' : '#000' }]}>{bid.mechanicName}</Text>
                 <Text style={styles.bidAmount}>₺{bid.amount}</Text>
@@ -304,13 +388,13 @@ export default function ListingDetailScreen() {
               {isOwner && listing.status === 'open' && (
                 <Button
                   title="Select Bid"
-                  onPress={() => handleSelectBid(bid.id)}
+                  onPress={() => handleSelectBid(bid._id)}
                   type="secondary"
                   style={styles.selectBidButton}
                 />
               )}
               
-              {listing.selectedBidId === bid.id && (
+              {listing.selectedBidId === bid._id && (
                 <View style={styles.selectedBadge}>
                   <Text style={styles.selectedText}>Selected</Text>
                 </View>
@@ -379,7 +463,7 @@ export default function ListingDetailScreen() {
           <Button
             title="Place Bid"
             onPress={handlePlaceBid}
-            loading={loading}
+            loading={isBidLoading}
           />
         </View>
       )}
@@ -422,6 +506,10 @@ export default function ListingDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',

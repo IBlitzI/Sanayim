@@ -10,22 +10,9 @@ interface Bid {
   createdAt: string;
 }
 
-interface Listing {
-  id: string;
-  ownerId: string;
-  ownerName: string;
-  vehicleLicensePlate: string;
-  description: string;
-  images: string[];
-  location: string;
-  status: 'open' | 'assigned' | 'completed';
-  createdAt: string;
-  bids: Bid[];
-  selectedBidId?: string | null;
-}
-
-interface Mechanic {
-  id: string;
+export interface Mechanic {
+  _id: string;
+  id?: string;
   fullName: string;
   location: string;
   profileImage?: string;
@@ -39,6 +26,20 @@ interface Mechanic {
     comment: string;
     date: string;
   }[];
+}
+
+interface Listing {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  vehicleLicensePlate: string;
+  description: string;
+  images: string[];
+  location: string;
+  status: 'open' | 'assigned' | 'completed';
+  createdAt: string;
+  bids: Bid[];
+  selectedBidId?: string | null;
 }
 
 interface ListingsState {
@@ -64,7 +65,8 @@ const initialState: ListingsState = {
     'İvedik Sanayi Bölgesi',
     'Sincan Sanayi Bölgesi',
     'Başkent Sanayi Bölgesi',
-    'Anadolu Sanayi Bölgesi'
+    'Anadolu Sanayi Bölgesi',
+    'Çorum'
   ],
   selectedZone: null,
 };

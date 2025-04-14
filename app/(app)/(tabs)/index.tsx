@@ -4,47 +4,9 @@ import { useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
 import { setSelectedZone, fetchMechanicsSuccess, fetchListingsSuccess } from '../../../store/slices/listingsSlice';
+import type { Mechanic } from '../../../store/slices/listingsSlice';
 import Card from '../../../components/Card';
 import { ChevronDown, Plus, MessageSquare } from 'lucide-react-native';
-
-const mockMechanics = [
-  {
-    id: '1',
-    fullName: 'Ahmet Yılmaz',
-    location: 'Ostim Sanayi Bölgesi',
-    profileImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    rating: 4.8,
-    specialties: ['Engine Repair', 'Electrical Systems'],
-    reviews: [
-      { id: '1', userId: '101', userName: 'Mehmet K.', rating: 5, comment: 'Great service, fixed my car quickly.', date: '2023-05-15' },
-      { id: '2', userId: '102', userName: 'Ayşe T.', rating: 4, comment: 'Professional and knowledgeable.', date: '2023-04-22' },
-    ],
-  },
-  {
-    id: '2',
-    fullName: 'Mustafa Demir',
-    location: 'Ostim Sanayi Bölgesi',
-    profileImage: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    rating: 4.5,
-    specialties: ['Brake Systems', 'Suspension'],
-    reviews: [
-      { id: '1', userId: '103', userName: 'Ali R.', rating: 5, comment: 'Fixed my brakes perfectly.', date: '2023-06-10' },
-      { id: '2', userId: '104', userName: 'Zeynep S.', rating: 4, comment: 'Good work on my suspension.', date: '2023-05-28' },
-    ],
-  },
-  {
-    id: '3',
-    fullName: 'Emre Kaya',
-    location: 'İvedik Sanayi Bölgesi',
-    profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    rating: 4.9,
-    specialties: ['Transmission', 'Engine Diagnostics'],
-    reviews: [
-      { id: '1', userId: '105', userName: 'Hakan B.', rating: 5, comment: 'Best mechanic in the area!', date: '2023-06-18' },
-      { id: '2', userId: '106', userName: 'Selin K.', rating: 5, comment: 'Diagnosed my engine problem quickly.', date: '2023-06-05' },
-    ],
-  },
-];
 
 const mockListings = [
   {
@@ -98,10 +60,37 @@ const mockListings = [
   },
 ];
 
+const parseSpecialties = (specialtiesData: string[]) => {
+  if (!specialtiesData || !specialtiesData.length) return [];
+
+  return specialtiesData.map(specialty => {
+    try {
+      const parsed = JSON.parse(specialty);
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => {
+          const cleaned = item.replace(/\\"/g, '"').replace(/^"|"$/g, '');
+          try {
+            if (cleaned.startsWith('[')) {
+              const parsedInner = JSON.parse(cleaned);
+              return Array.isArray(parsedInner) ? parsedInner[0] : cleaned;
+            }
+            return cleaned;
+          } catch {
+            return cleaned;
+          }
+        });
+      }
+      return [specialty];
+    } catch (e) {
+      return [specialty];
+    }
+  }).flat().filter(Boolean);
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { industrialZones, selectedZone, mechanics, listings } = useSelector((state: RootState) => state.listings);
   const { theme } = useSelector((state: RootState) => state.settings);
   
@@ -112,20 +101,40 @@ export default function HomeScreen() {
   const isVehicleOwner = user?.userType === 'vehicle_owner';
 
   useEffect(() => {
-    setTimeout(() => {
-      if (isVehicleOwner) {
-        dispatch(fetchMechanicsSuccess(mockMechanics));
-      } else {
-        dispatch(fetchListingsSuccess(mockListings));
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        if (isVehicleOwner && selectedZone) {
+          const response = await fetch('http://192.168.157.95:5000/api/repair-listings/mechanics', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ location: selectedZone }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch mechanics');
+          }
+          const data = await response.json();
+          dispatch(fetchMechanicsSuccess(data.data));
+        } else if (!isVehicleOwner) {
+          dispatch(fetchListingsSuccess(mockListings));
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      if (!selectedZone && industrialZones.length > 0) {
-        dispatch(setSelectedZone(industrialZones[0]));
-      }
-      
-      setLoading(false);
-    }, 1000);
-  }, [dispatch, isVehicleOwner, selectedZone, industrialZones]);
+    };
+
+    if (!selectedZone && industrialZones.length > 0) {
+      dispatch(setSelectedZone(industrialZones[0]));
+    } else {
+      fetchData();
+    }
+  }, [dispatch, isVehicleOwner, selectedZone, token, industrialZones]);
 
   const handleZoneSelect = (zone: string) => {
     dispatch(setSelectedZone(zone));
@@ -140,10 +149,6 @@ export default function HomeScreen() {
     router.push(`/listing/${listingId}`);
   };
 
-  const filteredMechanics = mechanics.filter(
-    mechanic => !selectedZone || mechanic.location === selectedZone
-  );
-
   const filteredListings = listings.filter(listing => {
     // Eğer kullanıcı vehicle owner ise sadece kendi ilanlarını göster
     if (isVehicleOwner) {
@@ -153,16 +158,19 @@ export default function HomeScreen() {
     return !selectedZone || (listing.location === selectedZone && listing.status === 'open');
   });
 
-  const renderMechanicItem = ({ item }: { item: any }) => (
-    <Card
-      title={item.fullName}
-      subtitle={item.location}
-      description={`Specializes in ${item.specialties.join(', ')}`}
-      image={item.profileImage}
-      rating={item.rating}
-      onPress={() => handleMechanicPress(item.id)}
-    />
-  );
+  const renderMechanicItem = ({ item }: { item: Mechanic }) => {
+    const parsedSpecialties = parseSpecialties(item.specialties || []);
+    return (
+      <Card
+        title={item.fullName}
+        subtitle={item.location}
+        description={`Specializes in ${parsedSpecialties.join(', ') || 'General Repair'}`}
+        image={item.profileImage}
+        rating={item.rating}
+        onPress={() => handleMechanicPress(item._id)}
+      />
+    );
+  };
 
   const renderListingItem = ({ item }: { item: any }) => (
     <Card
@@ -215,9 +223,9 @@ export default function HomeScreen() {
               <>
                 <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Mechanics in {selectedZone}</Text>
                 <FlatList
-                  data={filteredMechanics}
+                  data={mechanics}
                   renderItem={renderMechanicItem}
-                  keyExtractor={(item) => item.id}
+                  keyExtractor={(item) => item._id}
                   contentContainerStyle={styles.listContainer}
                   showsVerticalScrollIndicator={false}
                   ListEmptyComponent={

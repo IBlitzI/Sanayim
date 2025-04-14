@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
@@ -8,56 +8,75 @@ import { createConversation } from '../../../store/slices/chatSlice';
 import Button from '../../../components/Button';
 import { Star, MapPin, PenTool as Tool, MessageSquare } from 'lucide-react-native';
 
-// Mock mechanic data
-const mockMechanics = [
-  {
-    id: '1',
-    fullName: 'Ahmet Yılmaz',
-    location: 'Ostim Sanayi Bölgesi',
-    profileImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    rating: 4.8,
-    specialties: ['Engine Repair', 'Electrical Systems'],
-    reviews: [
-      { id: '1', userId: '101', userName: 'Mehmet K.', rating: 5, comment: 'Great service, fixed my car quickly.', date: '2023-05-15' },
-      { id: '2', userId: '102', userName: 'Ayşe T.', rating: 4, comment: 'Professional and knowledgeable.', date: '2023-04-22' },
-    ],
-  },
-  {
-    id: '2',
-    fullName: 'Mustafa Demir',
-    location: 'Ostim Sanayi Bölgesi',
-    profileImage: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    rating: 4.5,
-    specialties: ['Brake Systems', 'Suspension'],
-    reviews: [
-      { id: '1', userId: '103', userName: 'Ali R.', rating: 5, comment: 'Fixed my brakes perfectly.', date: '2023-06-10' },
-      { id: '2', userId: '104', userName: 'Zeynep S.', rating: 4, comment: 'Good work on my suspension.', date: '2023-05-28' },
-    ],
-  },
-  {
-    id: '3',
-    fullName: 'Emre Kaya',
-    location: 'İvedik Sanayi Bölgesi',
-    profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    rating: 4.9,
-    specialties: ['Transmission', 'Engine Diagnostics'],
-    reviews: [
-      { id: '1', userId: '105', userName: 'Hakan B.', rating: 5, comment: 'Best mechanic in the area!', date: '2023-06-18' },
-      { id: '2', userId: '106', userName: 'Selin K.', rating: 5, comment: 'Diagnosed my engine problem quickly.', date: '2023-06-05' },
-    ],
-  },
-];
+const parseSpecialties = (specialtiesData: string[]) => {
+  if (!specialtiesData || !specialtiesData.length) return [];
+
+  return specialtiesData.map(specialty => {
+    try {
+      const parsed = JSON.parse(specialty);
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => {
+          const cleaned = item.replace(/\\"/g, '"').replace(/^"|"$/g, '');
+          try {
+            if (cleaned.startsWith('[')) {
+              const parsedInner = JSON.parse(cleaned);
+              return Array.isArray(parsedInner) ? parsedInner[0] : cleaned;
+            }
+            return cleaned;
+          } catch {
+            return cleaned;
+          }
+        });
+      }
+      return [specialty];
+    } catch (e) {
+      return [specialty];
+    }
+  }).flat().filter(Boolean);
+};
+
+interface Reviewer {
+  _id: string;
+  fullName: string;
+  profileImage: string;
+}
+
+interface Review {
+  _id: string;
+  reviewerId: Reviewer;
+  reviewerName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+interface ReviewsData {
+  reviews: Review[];
+  rating: number;
+  reviewCount: number;
+}
 
 export default function MechanicProfileScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { conversations } = useSelector((state: RootState) => state.chat);
+  const { mechanics } = useSelector((state: RootState) => state.listings);
   const { theme } = useSelector((state: RootState) => state.settings);
   const isDark = theme === 'dark';
-  // Find the mechanic by ID
-  const mechanic = mockMechanics.find(m => m.id === id);
+
+  const [reviewsData, setReviewsData] = useState<ReviewsData>({ reviews: [], rating: 0, reviewCount: 0 });
+  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const [comment, setComment] = useState('');
+  const [rating, setRating] = useState(5);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Find the mechanic by MongoDB _id
+  const mechanic = mechanics.find(m => m._id === id);
   
   React.useEffect(() => {
     if (mechanic) {
@@ -65,17 +84,49 @@ export default function MechanicProfileScreen() {
     }
   }, [dispatch, mechanic]);
 
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!mechanic?._id) return;
+      
+      setIsLoadingReviews(true);
+      setReviewError(null);
+      
+      try {
+        const response = await fetch(`http://192.168.157.95:5000/api/reviews/mechanic/${mechanic._id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch reviews');
+        }
+
+        const result = await response.json();
+        if (result.success && result.data) {
+          setReviewsData(result.data);
+        }
+      } catch (err) {
+        setReviewError(err instanceof Error ? err.message : 'Failed to fetch reviews');
+      } finally {
+        setIsLoadingReviews(false);
+      }
+    };
+
+    fetchReviews();
+  }, [mechanic?._id, token]);
+
   if (!mechanic) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Mechanic not found</Text>
+      <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+        <Text style={[styles.errorText, { color: isDark ? '#ff6b6b' : '#e74c3c' }]}>Mechanic not found</Text>
       </View>
     );
   }
 
   const handleContactMechanic = () => {
     // Check if a conversation already exists
-    const existingConversation = conversations.find(c => c.participantId === mechanic.id);
+    const existingConversation = conversations.find(c => c.participantId === mechanic._id);
     
     if (existingConversation) {
       router.push(`/chat/${existingConversation.id}`);
@@ -83,7 +134,7 @@ export default function MechanicProfileScreen() {
       // Create a new conversation
       const newConversation = {
         id: `new-${Date.now()}`,
-        participantId: mechanic.id,
+        participantId: mechanic._id,
         participantName: mechanic.fullName,
         participantImage: mechanic.profileImage,
         unreadCount: 0,
@@ -95,19 +146,61 @@ export default function MechanicProfileScreen() {
     }
   };
 
+  const handleAddReview = async () => {
+    if (!comment.trim()) {
+      setSubmitError('Please enter a review comment');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const response = await fetch('http://192.168.157.95:5000/api/reviews/mechanic', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          mechanicId: mechanic._id,
+          rating,
+          comment: comment.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit review');
+      }
+
+      // Clear form
+      setComment('');
+      setRating(5);
+      // Force reload to get updated reviews
+      router.replace(`/mechanic/${mechanic._id}`);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to submit review');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Parse specialties
+  const parsedSpecialties = parseSpecialties(mechanic.specialties || []);
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
       <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#cccccc' }]}>
         <Image
-          source={{ uri: mechanic.profileImage }}
+          source={{ uri: mechanic.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
           style={styles.profileImage}
         />
         <Text style={[styles.name, { color: isDark ? '#fff' : '#000' }]}>{mechanic.fullName}</Text>
         
         <View style={styles.ratingContainer}>
           <Star size={18} color="#f1c40f" fill="#f1c40f" />
-          <Text style={[styles.rating, { color: isDark ? '#f1c40f' : '#f39c12' }]}>{mechanic.rating.toFixed(1)}</Text>
-          <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>({mechanic.reviews.length} reviews)</Text>
+          <Text style={[styles.rating, { color: isDark ? '#f1c40f' : '#f39c12' }]}>{(reviewsData.rating || 0).toFixed(1)}</Text>
+          <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>({reviewsData.reviewCount || 0} reviews)</Text>
         </View>
         
         <View style={styles.locationContainer}>
@@ -119,7 +212,7 @@ export default function MechanicProfileScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Specialties</Text>
         <View style={styles.specialtiesContainer}>
-          {mechanic.specialties.map((specialty, index) => (
+          {parsedSpecialties.map((specialty, index) => (
             <View key={index} style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1' }]}>
               <Tool size={14} color={isDark ? '#fff' : '#000'} />
               <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>{specialty}</Text>
@@ -130,25 +223,102 @@ export default function MechanicProfileScreen() {
       
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Reviews</Text>
-        {mechanic.reviews.map((review) => (
-          <View key={review.id} style={[styles.reviewItem, { backgroundColor: isDark ? '#1e1e1e' : '#f5f5f5' }]}>
-            <View style={styles.reviewHeader}>
-              <Text style={[styles.reviewerName, { color: isDark ? '#fff' : '#000' }]}>{review.userName}</Text>
-              <View style={styles.reviewRating}>
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    size={14}
-                    color="#f1c40f"
-                    fill={i < review.rating ? "#f1c40f" : "transparent"}
-                  />
+        
+        {user?.userType === 'vehicle_owner' && (
+          <View style={[styles.addReviewContainer, { backgroundColor: isDark ? '#1e1e1e' : '#f5f5f5' }]}>
+            <Text style={[styles.addReviewTitle, { color: isDark ? '#fff' : '#000' }]}>Add Your Review</Text>
+            
+            <View style={styles.ratingInputContainer}>
+              <Text style={[styles.ratingLabel, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Rating:</Text>
+              <View style={styles.starContainer}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setRating(star)}
+                    style={styles.starButton}
+                  >
+                    <Star
+                      size={24}
+                      color="#f1c40f"
+                      fill={star <= rating ? "#f1c40f" : "transparent"}
+                    />
+                  </TouchableOpacity>
                 ))}
               </View>
             </View>
-            <Text style={[styles.reviewComment, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{review.comment}</Text>
-            <Text style={[styles.reviewDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>{new Date(review.date).toLocaleDateString()}</Text>
+
+            <TextInput
+              style={[
+                styles.commentInput,
+                { 
+                  backgroundColor: isDark ? '#2c3e50' : '#fff',
+                  color: isDark ? '#fff' : '#000',
+                  borderColor: isDark ? '#3498db' : '#bdc3c7'
+                }
+              ]}
+              placeholder="Write your review..."
+              placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
+              value={comment}
+              onChangeText={setComment}
+              multiline
+              numberOfLines={4}
+            />
+
+            {submitError && (
+              <Text style={styles.errorText}>{submitError}</Text>
+            )}
+
+            <Button
+              title={isSubmitting ? "Submitting..." : "Submit Review"}
+              onPress={handleAddReview}
+              disabled={isSubmitting}
+              style={StyleSheet.flatten([
+                styles.submitButton,
+                isSubmitting && { opacity: 0.7 }
+              ])}
+            />
           </View>
-        ))}
+        )}
+
+        {isLoadingReviews ? (
+          <Text style={[styles.loadingText, { color: isDark ? '#fff' : '#000' }]}>Loading reviews...</Text>
+        ) : reviewError ? (
+          <Text style={[styles.errorText, { color: isDark ? '#ff6b6b' : '#e74c3c' }]}>{reviewError}</Text>
+        ) : (
+          reviewsData.reviews.map((review) => (
+            <View key={review._id} style={[styles.reviewItem, { backgroundColor: isDark ? '#1e1e1e' : '#f5f5f5' }]}>
+              <View style={styles.reviewHeader}>
+                <View style={styles.reviewerInfo}>
+                  <Image
+                    source={{ 
+                      uri: review.reviewerId.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80'
+                    }}
+                    style={styles.reviewerImage}
+                  />
+                  <Text style={[styles.reviewerName, { color: isDark ? '#fff' : '#000' }]}>
+                    {review.reviewerId.fullName}
+                  </Text>
+                </View>
+                <View style={styles.reviewRating}>
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      size={14}
+                      color="#f1c40f"
+                      fill={i < review.rating ? "#f1c40f" : "transparent"}
+                    />
+                  ))}
+                </View>
+              </View>
+              <Text style={[styles.reviewComment, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>
+                {review.comment}
+              </Text>
+              <Text style={[styles.reviewDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                {new Date(review.createdAt).toLocaleDateString()}
+              </Text>
+            </View>
+          ))
+        )}
       </View>
       
       <View style={styles.actionContainer}>
@@ -252,6 +422,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  reviewerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reviewerImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 8,
+  },
   reviewerName: {
     fontSize: 16,
     fontWeight: '600',
@@ -284,5 +464,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 40,
+  },
+  addReviewContainer: {
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  addReviewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  ratingInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  ratingLabel: {
+    fontSize: 14,
+    marginRight: 8,
+  },
+  starContainer: {
+    flexDirection: 'row',
+  },
+  starButton: {
+    marginHorizontal: 4,
+  },
+  commentInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  submitButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  loadingText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

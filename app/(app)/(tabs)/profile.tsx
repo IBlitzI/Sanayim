@@ -1,11 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { RootState } from '../../../store';
 import { updateUserProfile } from '../../../store/slices/authSlice';
 import Button from '../../../components/Button';
-import { Star, MapPin, PenTool as Tool, Car, Clock, CircleCheck as CheckCircle, MessageSquare } from 'lucide-react-native';
+import { Star, MapPin, PenTool as Tool, Car, Clock, CircleCheck as CheckCircle, MessageSquare, Trash2 } from 'lucide-react-native';
+
+interface Review {
+  _id: string;
+  deletedByMechanic: boolean;
+  reviewerId: {
+    _id: string;
+    fullName: string;
+    profileImage: string;
+  };
+  reviewerName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+interface ReviewsResponse {
+  reviews: Review[];
+  rating: number;
+  reviewCount: number;
+}
+
+interface RepairRequest {
+  _id: string;
+  vehicleLicensePlate: string;
+  description: string;
+  location: string;
+  status: 'open' | 'assigned' | 'completed';
+  bids?: Array<{
+    _id: string;
+    mechanicId: string;
+    price: number;
+  }>;
+  createdAt: string;
+}
 
 interface ProfileData {
   _id: string;
@@ -61,7 +95,14 @@ export default function ProfileScreen() {
   const { theme } = useSelector((state: RootState) => state.settings);
   
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [reviewsData, setReviewsData] = useState<ReviewsResponse>({
+    reviews: [],
+    rating: 0,
+    reviewCount: 0
+  });
+  const [repairRequests, setRepairRequests] = useState<RepairRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingRepairs, setLoadingRepairs] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const isDark = theme === 'dark';
@@ -72,7 +113,12 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     fetchProfileData();
-  }, []);
+    if (!isVehicleOwner) {
+      fetchReviews();
+    } else {
+      fetchRepairRequests();
+    }
+  }, [isVehicleOwner]);
 
   const fetchProfileData = async () => {
     try {
@@ -116,9 +162,98 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   };
-  
+
+  const fetchReviews = async () => {
+    try {
+      const response = await fetch('http://192.168.157.95:5000/api/reviews/me', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch reviews');
+      }
+
+      const result = await response.json();
+      if (result.success && result.data) {
+        setReviewsData(result.data);
+      }
+    } catch (err) {
+      console.error('Reviews fetch error:', err);
+    }
+  };
+
+  const fetchRepairRequests = async () => {
+    try {
+      const response = await fetch('http://192.168.157.95:5000/api/repair-listings/me', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch repair requests');
+      }
+
+      const result = await response.json();
+      if (result.success && result.data) {
+        setRepairRequests(result.data);
+      }
+    } catch (err) {
+      console.error('Repair requests fetch error:', err);
+    } finally {
+      setLoadingRepairs(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    Alert.alert(
+      "Delete Review",
+      "Are you sure you want to delete this review?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const response = await fetch(`http://192.168.157.95:5000/api/reviews/mechanic/review/${reviewId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                }
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to delete review');
+              }
+
+              // Refresh reviews after deletion
+              fetchReviews();
+            } catch (err) {
+              console.error('Delete review error:', err);
+              Alert.alert('Error', 'Failed to delete review');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleViewListing = (listingId: string) => {
     router.push(`/listing/${listingId}`);
+  };
+
+  const handleViewRepairRequest = (requestId: string) => {
+    router.push(`/listing/${requestId}`);
   };
 
   const handleEditProfile = () => {
@@ -154,11 +289,6 @@ export default function ProfileScreen() {
           style={styles.profileImage}
         />
         <Text style={[styles.name, { color: isDark ? '#fff' : '#000' }]}>{profileData?.fullName}</Text>
-{/*         
-        <View style={styles.infoRow}>
-          <MapPin size={16} color="#3498db" />
-          <Text style={[styles.infoText, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{'No location set'}</Text>
-        </View> */}
         
         {isVehicleOwner ? (
           <View style={styles.infoRow}>
@@ -168,8 +298,10 @@ export default function ProfileScreen() {
         ) : (
           <View style={styles.ratingContainer}>
             <Star size={16} color="#f1c40f" fill="#f1c40f" />
-            <Text style={styles.rating}>{profileData?.rating?.toFixed(1) || '0.0'}</Text>
-            <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>(0 reviews)</Text>
+            <Text style={styles.rating}>{reviewsData.rating?.toFixed(1) || '0.0'}</Text>
+            <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+              ({reviewsData.reviewCount} reviews)
+            </Text>
           </View>
         )}
         
@@ -184,46 +316,46 @@ export default function ProfileScreen() {
       {isVehicleOwner ? (
         <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
           <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>My Repair Requests</Text>
-          {userListings.length > 0 ? (
-            userListings.map((listing) => (
+          {repairRequests.length > 0 ? (
+            repairRequests.map((request) => (
               <TouchableOpacity
-                key={listing.id}
+                key={request._id}
                 style={[styles.listingItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}
-                onPress={() => handleViewListing(listing.id)}
+                onPress={() => handleViewRepairRequest(request._id)}
               >
                 <View style={styles.listingHeader}>
-                  <Text style={[styles.listingTitle, { color: isDark ? '#fff' : '#000' }]}>{listing.vehicleLicensePlate}</Text>
+                  <Text style={[styles.listingTitle, { color: isDark ? '#fff' : '#000' }]}>{request.vehicleLicensePlate}</Text>
                   <View style={[
                     styles.statusBadge,
-                    listing.status === 'open' ? styles.openStatus :
-                    listing.status === 'assigned' ? styles.assignedStatus :
+                    request.status === 'open' ? styles.openStatus :
+                    request.status === 'assigned' ? styles.assignedStatus :
                     styles.completedStatus
                   ]}>
-                    <Text style={styles.statusText}>{listing.status}</Text>
+                    <Text style={styles.statusText}>{request.status}</Text>
                   </View>
                 </View>
                 <Text style={[styles.listingDescription, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>
-                  {listing.description}
+                  {request.description}
                 </Text>
                 <View style={styles.listingFooter}>
                   <View style={styles.infoRow}>
                     <MapPin size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
-                    <Text style={[styles.listingInfo, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>{listing.location}</Text>
+                    <Text style={[styles.listingInfo, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>{request.location}</Text>
                   </View>
                   <View style={styles.infoRow}>
                     <Clock size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
                     <Text style={[styles.listingInfo, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
-                      {new Date(listing.createdAt).toLocaleDateString()}
+                      {new Date(request.createdAt).toLocaleDateString()}
                     </Text>
                   </View>
                 </View>
                 
                 {/* Show number of bids */}
-                {listing.bids && listing.bids.length > 0 && (
+                {request.bids && request.bids.length > 0 && (
                   <View style={[styles.bidsCounter, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1' }]}>
                     <MessageSquare size={14} color={isDark ? '#fff' : '#2c3e50'} />
                     <Text style={[styles.bidsCount, { color: isDark ? '#fff' : '#2c3e50' }]}>
-                      {listing.bids.length} bid{listing.bids.length !== 1 ? 's' : ''}
+                      {request.bids.length} bid{request.bids.length !== 1 ? 's' : ''}
                     </Text>
                   </View>
                 )}
@@ -247,6 +379,57 @@ export default function ProfileScreen() {
                 </View>
               ))}
             </View>
+          </View>
+          <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+            <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Reviews</Text>
+            {reviewsData.reviews.length > 0 ? (
+              reviewsData.reviews.map((review) => (
+                <View key={review._id} style={[styles.reviewItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}>
+                  <View style={styles.reviewHeader}>
+                    <Image
+                      source={{ 
+                        uri: review.reviewerId.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80'
+                      }}
+                      style={styles.reviewerImage}
+                    />
+                    <View style={styles.reviewerInfo}>
+                      <Text style={[styles.reviewerName, { color: isDark ? '#fff' : '#000' }]}>
+                        {review.reviewerName}
+                      </Text>
+                      <View style={styles.ratingContainer}>
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            size={14}
+                            color="#f1c40f"
+                            fill={i < review.rating ? "#f1c40f" : "transparent"}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={[styles.reviewComment, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>
+                    {review.comment}
+                  </Text>
+                  <View style={styles.reviewFooter}>
+                    <Text style={[styles.reviewDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                      {new Date(review.createdAt).toLocaleDateString()}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteReview(review._id)}
+                    >
+                      <Trash2 size={16} color="#e74c3c" />
+                      <Text style={[styles.deleteButtonText, { color: '#e74c3c' }]}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <Text style={[styles.emptyText, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                No reviews available
+              </Text>
+            )}
           </View>
         </>
       )}
@@ -398,6 +581,51 @@ const styles = StyleSheet.create({
   bidsCount: {
     marginLeft: 4,
     fontSize: 12,
+    fontWeight: '500',
+  },
+  reviewItem: {
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reviewerImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  reviewerInfo: {
+    flex: 1,
+  },
+  reviewerName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  reviewComment: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  reviewFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewDate: {
+    fontSize: 12,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  deleteButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
     fontWeight: '500',
   },
 });
