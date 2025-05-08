@@ -24,7 +24,6 @@ export default function CreateListingScreen() {
   
   const pickMedia = async () => {
     try {
-      // Kamera ve galeri izinlerini iste
       const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
       const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   
@@ -85,7 +84,7 @@ export default function CreateListingScreen() {
         } as any);
       });
 
-      const response = await fetch('http://192.168.157.95:5000/api/repair-listings', {
+      const response = await fetch('http://192.168.64.95:5000/api/repair-listings', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -130,7 +129,7 @@ export default function CreateListingScreen() {
             style={[
               styles.descriptionInput,
               {
-                backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
+                backgroundColor: isDark ? '#2c3e50' : '#ffffff', 
                 color: isDark ? '#fff' : '#2c3e50',
               },
             ]}
@@ -174,7 +173,7 @@ export default function CreateListingScreen() {
               style={[
                 styles.dropdown,
                 {
-                  backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
+                  backgroundColor: isDark ? '#2c3e50' : '#ffffff', 
                 },
               ]}
               onPress={() => setShowZoneDropdown(!showZoneDropdown)}
@@ -187,7 +186,7 @@ export default function CreateListingScreen() {
               <View style={[
                 styles.dropdownMenu,
                 {
-                  backgroundColor: isDark ? '#2c3e50' : '#ffffff', // Updated color for light mode
+                  backgroundColor: isDark ? '#2c3e50' : '#ffffff', 
                   borderColor: isDark ? '#34495e' : '#bdc3c7',
                 },
               ]}>

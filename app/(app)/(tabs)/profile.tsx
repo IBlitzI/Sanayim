@@ -122,7 +122,7 @@ export default function ProfileScreen() {
 
   const fetchProfileData = async () => {
     try {
-      const response = await fetch('http://192.168.157.95:5000/api/users/profile', {
+      const response = await fetch('http://192.168.64.95:5000/api/users/profile', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -165,7 +165,7 @@ export default function ProfileScreen() {
 
   const fetchReviews = async () => {
     try {
-      const response = await fetch('http://192.168.157.95:5000/api/reviews/me', {
+      const response = await fetch('http://192.168.64.95:5000/api/reviews/me', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -188,7 +188,7 @@ export default function ProfileScreen() {
 
   const fetchRepairRequests = async () => {
     try {
-      const response = await fetch('http://192.168.157.95:5000/api/repair-listings/me', {
+      const response = await fetch('http://192.168.64.95:5000/api/repair-listings/me', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -225,7 +225,7 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const response = await fetch(`http://192.168.157.95:5000/api/reviews/mechanic/review/${reviewId}`, {
+              const response = await fetch(`http://192.168.64.95:5000/api/reviews/mechanic/review/${reviewId}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${token}`,

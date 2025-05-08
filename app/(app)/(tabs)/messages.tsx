@@ -1,99 +1,84 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
 import { fetchConversationsSuccess } from '../../../store/slices/chatSlice';
 
-// Mock conversations data
-const mockConversations = [
-  {
-    id: '1',
-    participantId: '1',
-    participantName: 'Ahmet Yılmaz',
-    participantImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    lastMessage: 'I ll be there to check your car at 2 PM',
-    lastMessageTime: '2023-06-20T14:30:00Z',
-    unreadCount: 2,
-    messages: [
-      {
-        id: '101',
-        senderId: '1',
-        receiverId: 'current-user',
-        content: 'Hello, I saw your repair request. I can help with your brake issue.',
-        timestamp: '2023-06-20T10:30:00Z',
-        read: true,
-      },
-      {
-        id: '102',
-        senderId: 'current-user',
-        receiverId: '1',
-        content: 'Great! When can you take a look at it?',
-        timestamp: '2023-06-20T10:35:00Z',
-        read: true,
-      },
-      {
-        id: '103',
-        senderId: '1',
-        receiverId: 'current-user',
-        content: 'I ll be there to check your car at 2 PM',
-        timestamp: '2023-06-20T14:30:00Z',
-        read: false,
-      },
-    ],
-  },
-  {
-    id: '2',
-    participantId: '2',
-    participantName: 'Mustafa Demir',
-    participantImage: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    lastMessage: 'The parts will arrive tomorrow',
-    lastMessageTime: '2023-06-19T18:45:00Z',
-    unreadCount: 0,
-    messages: [
-      {
-        id: '201',
-        senderId: '2',
-        receiverId: 'current-user',
-        content: 'I ve ordered the parts for your car.',
-        timestamp: '2023-06-19T16:30:00Z',
-        read: true,
-      },
-      {
-        id: '202',
-        senderId: 'current-user',
-        receiverId: '2',
-        content: 'When will they arrive?',
-        timestamp: '2023-06-19T17:15:00Z',
-        read: true,
-      },
-      {
-        id: '203',
-        senderId: '2',
-        receiverId: 'current-user',
-        content: 'The parts will arrive tomorrow',
-        timestamp: '2023-06-19T18:45:00Z',
-        read: true,
-      },
-    ],
-  },
-];
-
 export default function MessagesScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { conversations } = useSelector((state: RootState) => state.chat);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { theme } = useSelector((state: RootState) => state.settings);
   const isDark = theme === 'dark';
 
-  useEffect(() => {
-    // Simulate API call to fetch conversations
-    setTimeout(() => {
-      dispatch(fetchConversationsSuccess(mockConversations));
+  const fetchChats = async (isRefreshing = false) => {
+    if (!token) return;
+
+    try {
+      const response = await fetch('http://192.168.64.95:5000/api/chat', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch chats');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data.chats) {
+        // Transform the chat data to match our frontend format and filter out chats without messages
+        const transformedChats = result.data.chats
+          .filter((chat: any) => chat.messages && chat.messages.length > 0)
+          .map((chat: any) => {
+            const otherParticipant = chat.otherParticipant;
+            
+            return {
+              id: chat._id,
+              participantId: otherParticipant._id,
+              participantName: otherParticipant.fullName,
+              participantImage: otherParticipant.profileImage,
+              lastMessage: chat.lastMessage?.content || '',
+              lastMessageTime: chat.lastMessage?.timestamp || chat.createdAt,
+              unreadCount: chat.unreadCount || 0,
+              messages: chat.messages.map((msg: any) => ({
+                id: msg._id,
+                senderId: msg.senderId,
+                content: msg.content,
+                timestamp: msg.timestamp,
+                read: msg.read,
+                edited: msg.edited
+              }))
+            };
+          });
+
+        dispatch(fetchConversationsSuccess(transformedChats));
+      }
+    } catch (err) {
+      console.error('Fetch chats error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch chats');
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, [dispatch]);
+      if (isRefreshing) {
+        setRefreshing(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchChats();
+  }, [dispatch, token]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchChats(true);
+  };
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -101,16 +86,12 @@ export default function MessagesScreen() {
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
     
     if (diffDays === 0) {
-      // Today, show time
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else if (diffDays === 1) {
-      // Yesterday
       return 'Yesterday';
     } else if (diffDays < 7) {
-      // This week, show day name
       return date.toLocaleDateString([], { weekday: 'short' });
     } else {
-      // Older, show date
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
   };
@@ -121,21 +102,25 @@ export default function MessagesScreen() {
 
   const renderConversationItem = ({ item }: { item: any }) => (
     <TouchableOpacity
-      style={styles.conversationItem}
+      style={[styles.conversationItem, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}
       onPress={() => handleConversationPress(item.id)}
     >
       <Image
-        source={{ uri: item.participantImage }}
+        source={{ uri: item.participantImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
         style={styles.avatar}
       />
       <View style={styles.conversationContent}>
         <View style={styles.conversationHeader}>
-          <Text style={styles.participantName}>{item.participantName}</Text>
+          <Text style={[styles.participantName, { color: isDark ? '#fff' : '#000' }]}>{item.participantName}</Text>
           <Text style={styles.timeText}>{formatTime(item.lastMessageTime)}</Text>
         </View>
         <View style={styles.messageRow}>
           <Text
-            style={[styles.lastMessage, item.unreadCount > 0 && styles.unreadMessage]}
+            style={[
+              styles.lastMessage, 
+              item.unreadCount > 0 && styles.unreadMessage,
+              { color: isDark ? '#bdc3c7' : '#2c3e50' }
+            ]}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
@@ -151,104 +136,44 @@ export default function MessagesScreen() {
     </TouchableOpacity>
   );
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: isDark ? '#121212' : '#ffffff',
-    },
-    listContainer: {
-      padding: 16,
-      flexGrow: 1,
-    },
-    conversationItem: {
-      flexDirection: 'row',
-      padding: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0',
-      alignItems: 'center',
-    },
-    avatar: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      marginRight: 12,
-    },
-    conversationContent: {
-      flex: 1,
-    },
-    conversationHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 4,
-    },
-    participantName: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: isDark ? '#fff' : '#000',
-    },
-    timeText: {
-      fontSize: 12,
-      color: isDark ? '#95a5a6' : '#7f8c8d',
-    },
-    messageRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    lastMessage: {
-      fontSize: 14,
-      color: isDark ? '#bdc3c7' : '#2c3e50',
-      flex: 1,
-    },
-    unreadMessage: {
-      color: isDark ? '#fff' : '#000',
-      fontWeight: '500',
-    },
-    unreadBadge: {
-      backgroundColor: '#3498db',
-      borderRadius: 10,
-      width: 20,
-      height: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginLeft: 8,
-    },
-    unreadCount: {
-      color: '#fff',
-      fontSize: 12,
-      fontWeight: 'bold',
-    },
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingTop: 100,
-    },
-    emptyText: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: isDark ? '#fff' : '#000',
-      marginBottom: 8,
-    },
-    emptySubtext: {
-      fontSize: 14,
-      color: isDark ? '#95a5a6' : '#7f8c8d',
-      textAlign: 'center',
-    },
-  });
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
+        <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centerContent, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
+        <Text style={[styles.errorText, { color: isDark ? '#ff6b6b' : '#e74c3c' }]}>{error}</Text>
+        <TouchableOpacity onPress={() => fetchChats()} style={styles.retryButton}>
+          <Text style={[styles.retryText, { color: isDark ? '#fff' : '#000' }]}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
       <FlatList
         data={conversations}
         renderItem={renderConversationItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={isDark ? '#fff' : '#000'}
+          />
+        }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No conversations yet</Text>
-              <Text style={styles.emptySubtext}>
+              <Text style={[styles.emptyText, { color: isDark ? '#fff' : '#000' }]}>No conversations yet</Text>
+              <Text style={[styles.emptySubtext, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
                 Your messages with mechanics will appear here
               </Text>
             </View>
@@ -258,3 +183,98 @@ export default function MessagesScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContainer: {
+    flexGrow: 1,
+  },
+  conversationItem: {
+    flexDirection: 'row',
+    padding: 16,
+    borderBottomWidth: 1,
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  conversationContent: {
+    flex: 1,
+  },
+  conversationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  participantName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  timeText: {
+    fontSize: 12,
+    color: '#95a5a6',
+  },
+  messageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  lastMessage: {
+    fontSize: 14,
+    flex:1,
+  },
+  unreadMessage: {
+    fontWeight: '500',
+  },
+  unreadBadge: {
+    backgroundColor: '#3498db',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  unreadCount: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  retryButton: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#3498db',
+  },
+  retryText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

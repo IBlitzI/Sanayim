@@ -8,58 +8,6 @@ import type { Mechanic } from '../../../store/slices/listingsSlice';
 import Card from '../../../components/Card';
 import { ChevronDown, Plus, MessageSquare } from 'lucide-react-native';
 
-const mockListings = [
-  {
-    id: '1',
-    ownerId: '101',
-    ownerName: 'Mehmet Kaya',
-    vehicleLicensePlate: 'ABC123',
-    description: 'My car makes a strange noise when I brake. Need help diagnosing the issue.',
-    images: ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
-    location: 'Ostim Sanayi Bölgesi',
-    status: 'open' as 'open',
-    createdAt: '2023-06-20T10:30:00Z',
-    selectedBidId: null,
-    bids: [
-      {
-        id: 'bid1',
-        mechanicId: '1',
-        mechanicName: 'Ahmet Yılmaz',
-        amount: 750,
-        estimatedTime: '2 hours',
-        message: 'I can fix your brake issue. It sounds like worn brake pads.',
-        createdAt: '2023-06-20T12:30:00Z',
-      },
-    ],
-  },
-  {
-    id: '2',
-    ownerId: '102',
-    ownerName: 'Ayşe Tekin',
-    vehicleLicensePlate: 'XYZ789',
-    description: 'Engine light is on. Car is running rough and has reduced power.',
-    images: ['https://images.unsplash.com/photo-1503376780353-7e6692767b70?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
-    location: 'İvedik Sanayi Bölgesi',
-    status: 'open' as 'open',
-    createdAt: '2023-06-19T14:45:00Z',
-    selectedBidId: null,
-    bids: [],
-  },
-  {
-    id: '3',
-    ownerId: '103',
-    ownerName: 'Ali Rıza',
-    vehicleLicensePlate: 'DEF456',
-    description: 'Need to replace the timing belt on my 2015 Toyota Corolla.',
-    images: ['https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80'],
-    location: 'Sincan Sanayi Bölgesi',
-    status: 'open' as 'open',
-    createdAt: '2023-06-18T09:15:00Z',
-    selectedBidId: null,
-    bids: [],
-  },
-];
-
 const parseSpecialties = (specialtiesData: string[]) => {
   if (!specialtiesData || !specialtiesData.length) return [];
 
@@ -87,15 +35,44 @@ const parseSpecialties = (specialtiesData: string[]) => {
   }).flat().filter(Boolean);
 };
 
+interface Owner {
+  _id: string;
+  fullName: string;
+  profileImage: string;
+}
+
+interface MediaFile {
+  data: string;
+  type: 'image' | 'video';
+  _id: string;
+}
+
+interface RepairRequest {
+  _id: string;
+  ownerId: Owner;
+  ownerName: string;
+  vehicleLicensePlate: string;
+  description: string;
+  mediaFiles: MediaFile[];
+  location: string;
+  status: 'open' | 'assigned' | 'completed';
+  selectedBidId: string | null;
+  bids: [];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { user, token } = useSelector((state: RootState) => state.auth);
-  const { industrialZones, selectedZone, mechanics, listings } = useSelector((state: RootState) => state.listings);
+  const { industrialZones, selectedZone, mechanics } = useSelector((state: RootState) => state.listings);
   const { theme } = useSelector((state: RootState) => state.settings);
   
   const [loading, setLoading] = useState(true);
   const [showZoneDropdown, setShowZoneDropdown] = useState(false);
+  const [repairRequests, setRepairRequests] = useState<RepairRequest[]>([]);
   
   const isDark = theme === 'dark';
   const isVehicleOwner = user?.userType === 'vehicle_owner';
@@ -105,7 +82,7 @@ export default function HomeScreen() {
       try {
         setLoading(true);
         if (isVehicleOwner && selectedZone) {
-          const response = await fetch('http://192.168.157.95:5000/api/repair-listings/mechanics', {
+          const response = await fetch('http://192.168.64.95:5000/api/repair-listings/mechanics', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -120,7 +97,22 @@ export default function HomeScreen() {
           const data = await response.json();
           dispatch(fetchMechanicsSuccess(data.data));
         } else if (!isVehicleOwner) {
-          dispatch(fetchListingsSuccess(mockListings));
+          // Fetch repair requests for mechanics
+          const response = await fetch('http://192.168.64.95:5000/api/repair-listings/get-listings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ location: selectedZone }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch repair requests');
+          }
+
+          const data = await response.json();
+          setRepairRequests(data);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -149,10 +141,10 @@ export default function HomeScreen() {
     router.push(`/listing/${listingId}`);
   };
 
-  const filteredListings = listings.filter(listing => {
+  const filteredListings = repairRequests.filter(listing => {
     // Eğer kullanıcı vehicle owner ise sadece kendi ilanlarını göster
     if (isVehicleOwner) {
-      return listing.ownerId === user?.id && listing.status === 'open';
+      return listing.ownerId._id === user?.id && listing.status === 'open';
     }
     // Mechanic için seçili bölgedeki açık ilanları göster
     return !selectedZone || (listing.location === selectedZone && listing.status === 'open');
@@ -172,13 +164,13 @@ export default function HomeScreen() {
     );
   };
 
-  const renderListingItem = ({ item }: { item: any }) => (
+  const renderListingItem = ({ item }: { item: RepairRequest }) => (
     <Card
-      title={`${item.vehicleLicensePlate} - ${item.ownerName}`}
+      title={`${item.vehicleLicensePlate} - ${item.ownerId.fullName}`}
       subtitle={item.location}
       description={item.description}
-      image={item.images[0]}
-      onPress={() => handleListingPress(item.id)}
+      image={item.mediaFiles[0]?.data}
+      onPress={() => handleListingPress(item._id)}
     />
   );
 
@@ -239,7 +231,7 @@ export default function HomeScreen() {
                 <FlatList
                   data={filteredListings}
                   renderItem={renderListingItem}
-                  keyExtractor={(item) => item.id}
+                  keyExtractor={(item) => item._id}
                   contentContainerStyle={styles.listContainer}
                   showsVerticalScrollIndicator={false}
                   ListEmptyComponent={
@@ -251,12 +243,14 @@ export default function HomeScreen() {
           </>
         )}
       </View>
-      {isVehicleOwner ? <TouchableOpacity 
-        style={[styles.aiChatButton, { backgroundColor: isDark ? '#3498db' : '#2980b9' }]}
-        onPress={() => router.push('/ai-chat')}
-      >
-        <MessageSquare size={24} color="#fff" />
-      </TouchableOpacity> : null}
+      {isVehicleOwner ? (
+        <TouchableOpacity 
+          style={[styles.aiChatButton, { backgroundColor: isDark ? '#3498db' : '#2980b9' }]}
+          onPress={() => router.push('/ai-chat')}
+        >
+          <MessageSquare size={24} color="#fff" />
+        </TouchableOpacity>
+      ) : null}
     </SafeAreaView>
   );
 }

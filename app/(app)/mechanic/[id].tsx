@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
@@ -92,7 +92,7 @@ export default function MechanicProfileScreen() {
       setReviewError(null);
       
       try {
-        const response = await fetch(`http://192.168.157.95:5000/api/reviews/mechanic/${mechanic._id}`, {
+        const response = await fetch(`http://192.168.64.95:5000/api/reviews/mechanic/${mechanic._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -124,25 +124,50 @@ export default function MechanicProfileScreen() {
     );
   }
 
-  const handleContactMechanic = () => {
-    // Check if a conversation already exists
-    const existingConversation = conversations.find(c => c.participantId === mechanic._id);
-    
-    if (existingConversation) {
-      router.push(`/chat/${existingConversation.id}`);
-    } else {
-      // Create a new conversation
-      const newConversation = {
-        id: `new-${Date.now()}`,
-        participantId: mechanic._id,
-        participantName: mechanic.fullName,
-        participantImage: mechanic.profileImage,
-        unreadCount: 0,
-        messages: [],
-      };
+  const handleContactMechanic = async () => {
+    try {
+      const response = await fetch('http://192.168.64.95:5000/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          mechanicId: mechanic._id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create chat');
+      }
+
+      const { success, data } = await response.json();
       
-      dispatch(createConversation(newConversation));
-      router.push(`/chat/${newConversation.id}`);
+      if (success && data) {
+        // Transform MongoDB chat data into frontend format
+        const newChat = {
+          id: data._id,
+          participantId: mechanic._id,
+          participantName: mechanic.fullName,
+          participantImage: mechanic.profileImage,
+          lastMessage: '',
+          lastMessageTime: data.lastMessage,
+          unreadCount: 0,
+          messages: []
+        };
+
+        // Add the chat to Redux store
+        dispatch(createConversation(newChat));
+        
+        // Navigate to chat screen
+        router.push(`/chat/${data._id}`);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      Alert.alert('Error', 'Failed to start conversation with mechanic');
     }
   };
 
@@ -156,7 +181,7 @@ export default function MechanicProfileScreen() {
     setSubmitError(null);
 
     try {
-      const response = await fetch('http://192.168.157.95:5000/api/reviews/mechanic', {
+      const response = await fetch('http://192.168.64.95:5000/api/reviews/mechanic', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

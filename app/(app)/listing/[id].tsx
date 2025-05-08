@@ -81,7 +81,7 @@ export default function ListingDetailScreen() {
 
   const fetchRepairRequest = async () => {
     try {
-      const response = await fetch(`http://192.168.157.95:5000/api/repair-listings/${id}`, {
+      const response = await fetch(`http://192.168.64.95:5000/api/repair-listings/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',

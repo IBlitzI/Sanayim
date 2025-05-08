@@ -1,96 +1,168 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+  Alert,
+} from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
-import { setActiveConversation, sendMessage } from '../../../store/slices/chatSlice';
+import {
+  setActiveConversation,
+  sendMessage,
+  createConversation,
+} from '../../../store/slices/chatSlice';
 import { Send } from 'lucide-react-native';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { conversations, activeConversation } = useSelector((state: RootState) => state.chat);
-  
+
   const [messageText, setMessageText] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
-  
-  // Find the conversation by ID
-  const conversation = conversations.find(c => c.id === id);
+
+  const conversation = conversations.find((c) => c.id === id);
   const { theme } = useSelector((state: RootState) => state.settings);
   const isDark = theme === 'dark';
-  
-  useEffect(() => {
-    if (conversation) {
-      dispatch(setActiveConversation(conversation));
+
+  const markAsRead = async (chatId: string) => {
+    try {
+      await fetch(`http://192.168.64.95:5000/api/chat/${chatId}/read`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Error marking chat as read:', error);
     }
-    
+  };
+
+  useEffect(() => {
+    const loadChat = async () => {
+      try {
+        if (!conversation) {
+          const response = await fetch(`http://192.168.64.95:5000/api/chat/${id}/messages`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (!response.ok) {
+            throw new Error('Failed to fetch chat');
+          }
+          const chatData = await response.json();
+          const mechanic = chatData.participants[0];
+
+          const newChat = {
+            id: chatData._id,
+            participantId: mechanic._id,
+            participantName: mechanic.fullName,
+            participantImage: mechanic.profileImage,
+            lastMessage: '',
+            lastMessageTime: chatData.lastMessage || new Date().toISOString(),
+            unreadCount: 0,
+            messages: chatData.messages || [],
+          };
+
+          dispatch(createConversation(newChat));
+          await markAsRead(chatData._id);
+        } else {
+          dispatch(setActiveConversation(conversation));
+          await markAsRead(conversation.id);
+        }
+      } catch (error) {
+        console.error('Error loading chat:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadChat();
+
     return () => {
       dispatch(setActiveConversation(null));
     };
-  }, [dispatch, conversation]);
+  }, [dispatch, id, conversation, token]);
 
-  const handleSendMessage = () => {
-    if (!messageText.trim() || !activeConversation) return;
-    
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !activeConversation || !user || !token) {
+      return;
+    }
+
     const newMessage = {
       id: `msg-${Date.now()}`,
-      senderId: user?.id || 'current-user',
+      senderId: user.id,
       receiverId: activeConversation.participantId,
       content: messageText.trim(),
       timestamp: new Date().toISOString(),
       read: false,
     };
-    
-    dispatch(sendMessage({ conversationId: activeConversation.id, message: newMessage }));
-    setMessageText('');
-    
-    // Simulate receiving a response after a delay
-    setTimeout(() => {
-      const responseMessage = {
-        id: `msg-${Date.now() + 1}`,
-        senderId: activeConversation.participantId,
-        receiverId: user?.id || 'current-user',
-        content: getRandomResponse(),
-        timestamp: new Date().toISOString(),
-        read: false,
-      };
-      
-      dispatch(sendMessage({ conversationId: activeConversation.id, message: responseMessage }));
-    }, 2000);
-  };
 
-  const getRandomResponse = () => {
-    const responses = [
-      "I'll check that for you right away.",
-      "That sounds good. When would you like to schedule the repair?",
-      "I have the parts in stock. I can fix it tomorrow.",
-      "Could you provide more details about the issue?",
-      "I'll be at the shop until 6 PM today if you want to bring your car in.",
-      "The repair should take about 2 hours once I start working on it.",
-      "I've seen this issue before. It's usually a quick fix.",
-    ];
-    
-    return responses[Math.floor(Math.random() * responses.length)];
+    try {
+      const response = await fetch(`http://192.168.64.95:5000/api/chat/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          chatId: id,
+          content: messageText.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      const responseData = await response.json();
+
+      if (responseData.success) {
+        dispatch(sendMessage({ conversationId: activeConversation.id, message: newMessage }));
+        setMessageText('');
+      } else {
+        throw new Error(responseData.message || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message');
+    }
   };
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
-
+  
   const renderMessage = ({ item }: { item: any }) => {
+    console.log(user?.id)
     const isCurrentUser = item.senderId === user?.id || item.senderId === 'current-user';
     
+
     return (
-      <View style={[
-        styles.messageContainer,
-        isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage
-      ]}>
-        <View style={[
-          styles.messageBubble,
-          isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble
-        ]}>
+      <View
+        style={[
+          styles.messageContainer,
+          isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage,
+        ]}
+      >
+        <View
+          style={[
+            styles.messageBubble,
+            isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble,
+          ]}
+        > 
+          <Text style={styles.messageParticipantName}>{item.senderId === user?.id ? 'You' : activeConversation?.participantName}</Text>
           <Text style={styles.messageText}>{item.content}</Text>
           <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
         </View>
@@ -113,16 +185,15 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#cccccc' }]}>
-        <Image
-          source={{ uri: activeConversation.participantImage }}
-          style={styles.avatar}
-        />
+        <Image source={{ uri: activeConversation.participantImage }} style={styles.avatar} />
         <View style={styles.headerInfo}>
-          <Text style={[styles.headerName, { color: isDark ? '#fff' : '#000' }]}>{activeConversation.participantName}</Text>
+          <Text style={[styles.headerName, { color: isDark ? '#fff' : '#000' }]}>
+            {activeConversation.participantName}
+          </Text>
           <Text style={[styles.headerStatus, { color: isDark ? '#2ecc71' : '#27ae60' }]}>Online</Text>
         </View>
       </View>
-      
+
       <FlatList
         ref={flatListRef}
         data={activeConversation.messages}
@@ -134,14 +205,22 @@ export default function ChatScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: isDark ? '#fff' : '#000' }]}>No messages yet</Text>
-            <Text style={[styles.emptySubtext, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>Start the conversation by sending a message</Text>
+            <Text style={[styles.emptySubtext, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+              Start the conversation by sending a message
+            </Text>
           </View>
         }
       />
-      
+
       <View style={[styles.inputContainer, { borderTopColor: isDark ? '#2c2c2c' : '#cccccc' }]}>
         <TextInput
-          style={[styles.input, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1', color: isDark ? '#fff' : '#000' }]}
+          style={[
+            styles.input,
+            {
+              backgroundColor: isDark ? '#2c3e50' : '#ecf0f1',
+              color: isDark ? '#fff' : '#000',
+            },
+          ]}
           value={messageText}
           onChangeText={setMessageText}
           placeholder="Type a message..."
@@ -149,7 +228,19 @@ export default function ChatScreen() {
           multiline
         />
         <TouchableOpacity
-          style={[styles.sendButton, !messageText.trim() && styles.disabledSendButton, { backgroundColor: !messageText.trim() ? (isDark ? '#95a5a6' : '#bdc3c7') : (isDark ? '#3498db' : '#2980b9') }]}
+          style={[
+            styles.sendButton,
+            !messageText.trim() && styles.disabledSendButton,
+            {
+              backgroundColor: !messageText.trim()
+                ? isDark
+                  ? '#95a5a6'
+                  : '#bdc3c7'
+                : isDark
+                ? '#3498db'
+                : '#2980b9',
+            },
+          ]}
           onPress={handleSendMessage}
           disabled={!messageText.trim()}
         >
@@ -216,6 +307,14 @@ const styles = StyleSheet.create({
   otherUserBubble: {
     backgroundColor: '#2c3e50',
     borderBottomLeftRadius: 4,
+  },
+  messageParticipantName: {
+    color: '#e0e0e0',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+    letterSpacing: 0.2,
+    textTransform: 'capitalize',
   },
   messageText: {
     color: '#fff',

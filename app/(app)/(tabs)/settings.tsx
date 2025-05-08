@@ -29,7 +29,7 @@ export default function SettingsScreen() {
           onPress: async () => {
             try {
               // API'ye logout isteği gönder
-              const response = await fetch('http://192.168.157.95:5000/api/users/logout', {
+              const response = await fetch('http://192.168.64.95:5000/api/users/logout', {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,

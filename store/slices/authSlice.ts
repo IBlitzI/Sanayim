@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User {
+  _id: string;
   id: string;
   fullName: string;
   email: string;
