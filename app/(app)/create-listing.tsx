@@ -37,7 +37,6 @@ export default function CreateListingScreen() {
         allowsEditing: true, // Kullanıcıya düzenleme imkanı (isteğe bağlı)
         quality: 1, // En yüksek kalite
       });
-      console.log(result)
       if (!result.canceled && result.assets?.[0]?.uri) {
         setImages([...images, result.assets[0].uri]);
       }

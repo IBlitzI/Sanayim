@@ -145,7 +145,6 @@ export default function ChatScreen() {
   };
   
   const renderMessage = ({ item }: { item: any }) => {
-    console.log(user?.id)
     const isCurrentUser = item.senderId === user?.id || item.senderId === 'current-user';
     
 

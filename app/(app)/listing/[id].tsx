@@ -71,15 +71,32 @@ export default function ListingDetailScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const [bidSubmitSuccess, setBidSubmitSuccess] = useState(false);
   const flatListRef = useRef<FlatList<MediaFile>>(null);
   
   const isDark = theme === 'dark';
 
   useEffect(() => {
-    fetchRepairRequest();
+    fetchRepairRequest(true);
   }, [id]);
+  
+  // Effect to refresh the page after successful bid submission
+  useEffect(() => {
+    if (bidSubmitSuccess) {
+      // Reset the flag
+      setBidSubmitSuccess(false);
+      // Refresh the page after a short delay to ensure the alert is shown
+      setTimeout(() => {
+        router.replace(`/listing/${id}`);
+      }, 500);
+    }
+  }, [bidSubmitSuccess, id, router]);
 
-  const fetchRepairRequest = async () => {
+  const fetchRepairRequest = async (showLoadingIndicator = true) => {
+    if (showLoadingIndicator) {
+      setLoading(true);
+    }
+    
     try {
       const response = await fetch(`http://192.168.64.95:5000/api/repair-listings/${id}`, {
         headers: {
@@ -94,7 +111,6 @@ export default function ListingDetailScreen() {
 
       const result = await response.json();
       if (result.success && result.data) {
-        console.log(result.data);
         setListing(result.data);
       } else {
         throw new Error('Repair request not found');
@@ -142,67 +158,151 @@ export default function ListingDetailScreen() {
   const isMechanic = user?.userType === 'mechanic';
   const isOwner = listing.ownerId._id === user?.id;
   
-  const handlePlaceBid = () => {
+  const handlePlaceBid = async () => {
     if (!bidAmount || !estimatedTime || !bidMessage) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
     
     setBidLoading(true);
+    let bidSubmitted = false;
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Call the API endpoint as specified: router.post('/:id/bids', protect, authorize('mechanic'), submitBid)
+      const response = await fetch(`http://192.168.64.95:5000/api/repair-listings/${listing._id}/bids`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: parseFloat(bidAmount),
+          estimatedTime,
+          message: bidMessage,
+        }),
+      });
+
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to submit bid');
+      }
+      
+      console.log('Response data:', responseData);
+      
+      // Create the bid object using our own data since the API response structure is different
       const newBid = {
-        id: `bid-${Date.now()}`,
+        id: responseData.bid?._id || `bid-${Date.now()}`,
         mechanicId: user?.id || '',
         mechanicName: user?.fullName || '',
         amount: parseFloat(bidAmount),
         estimatedTime,
         message: bidMessage,
-        createdAt: new Date().toISOString(),
+        createdAt: responseData.bid?.createdAt || new Date().toISOString(),
       };
-      
+        
+      // Update Redux store
       dispatch(addBidToListing({ listingId: listing._id, bid: newBid }));
       
-      setBidLoading(false);
+      // Clear input fields
       setBidAmount('');
       setEstimatedTime('');
       setBidMessage('');
       
-      Alert.alert('Success', 'Your bid has been placed successfully');
-    }, 1000);
+      // Mark that the bid was submitted successfully
+      bidSubmitted = true;
+      
+      // Show success alert
+      Alert.alert(
+        'Başarılı', 
+        'Teklifiniz başarıyla gönderildi',
+        [
+          { 
+            text: 'Tamam'
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error submitting bid:', error);
+      Alert.alert(
+        'Hata', 
+        error instanceof Error ? error.message : 'Teklif gönderirken bir sorun oluştu',
+        [{ text: 'Tamam' }]
+      );
+    } finally {
+      setBidLoading(false);
+      
+      // If bid was successfully submitted, trigger page refresh
+      if (bidSubmitted) {
+        setBidSubmitSuccess(true);
+      }
+    }
   };
 
   const handleSelectBid = (bidId: string) => {
     Alert.alert(
-      'Select Bid',
-      'Are you sure you want to select this bid?',
+      'Teklif Seçimi',
+      'Bu teklifi seçmek istediğinizden emin misiniz?',
       [
         {
-          text: 'Cancel',
+          text: 'İptal',
           style: 'cancel',
         },
         {
-          text: 'Select',
-          onPress: () => {
-            dispatch(selectBid({ listingId: listing._id, bidId }));
-            
-            // Find the selected bid
-            const selectedBid = listing.bids.find(bid => bid._id === bidId);
-            
-            if (selectedBid) {
-              // Create a conversation with the mechanic
-              const newConversation = {
-                id: `conv-${Date.now()}`,
-                participantId: selectedBid.mechanicId,
-                participantName: selectedBid.mechanicName,
-                participantImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-                unreadCount: 0,
-                messages: [],
-              };
+          text: 'Seç',
+          onPress: async () => {
+            try {
+              // Show loading indicator
+              setLoading(true);
               
-              dispatch(createConversation(newConversation));
-              router.push(`/chat/${newConversation.id}`);
+              // Call the API endpoint
+              const response = await fetch('http://192.168.64.95:5000/api/repair-listings/select-bid', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  listingId: listing._id,
+                  bidId: bidId
+                }),
+              });
+              
+              const responseData = await response.json();
+              
+              if (!response.ok) {
+                throw new Error(responseData.message || 'Failed to select bid');
+              }
+              
+              // Update Redux store
+              dispatch(selectBid({ listingId: listing._id, bidId }));
+              
+              // Update local state to immediately show the selected bid
+              setListing({
+                ...listing,
+                selectedBidId: bidId,
+                status: 'assigned'
+              });
+              
+              // Find the selected bid
+              const selectedBid = listing.bids.find(bid => bid._id === bidId);
+              
+              if (selectedBid) {
+                
+                Alert.alert(
+                  'Başarılı',
+                  'Teklif başarıyla seçildi. İlgili tamirci ile iletişime geçebilirsiniz.',
+                  [{ text: 'Tamam' }]
+                );
+              }
+            } catch (error) {
+              console.error('Error selecting bid:', error);
+              Alert.alert(
+                'Hata', 
+                error instanceof Error ? error.message : 'Teklif seçiminde bir sorun oluştu. Lütfen tekrar deneyin.'
+              );
+            } finally {
+              setLoading(false);
             }
           },
         },
@@ -385,7 +485,7 @@ export default function ListingDetailScreen() {
               
               <Text style={[styles.bidMessage, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{bid.message}</Text>
               
-              {isOwner && listing.status === 'open' && (
+              {isOwner && listing.status === 'open' && !listing.selectedBidId && (
                 <Button
                   title="Select Bid"
                   onPress={() => handleSelectBid(bid._id)}
