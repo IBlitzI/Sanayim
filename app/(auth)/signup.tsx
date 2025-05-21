@@ -93,7 +93,7 @@ Teşekkürler.`;
         } as any);
       }
 
-      const response = await fetch('http://192.168.64.95:5000/api/users/register', {
+      const response = await fetch('http://192.168.1.103:5000/api/users/register', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

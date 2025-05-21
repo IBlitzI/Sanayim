@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { RootState } from '../../../store';
 import { updateUserProfile } from '../../../store/slices/authSlice';
 import Button from '../../../components/Button';
-import { Star, MapPin, PenTool as Tool, Car, Clock, CircleCheck as CheckCircle, MessageSquare, Trash2 } from 'lucide-react-native';
+import { Star, MapPin, PenTool as Tool, Car, Clock, CircleCheck as CheckCircle, MessageSquare, Trash2, DollarSign, Clock3 } from 'lucide-react-native';
 
 interface Review {
   _id: string;
@@ -39,6 +39,42 @@ interface RepairRequest {
     price: number;
   }>;
   createdAt: string;
+}
+
+interface MechanicBid {
+  mechanicId: string;
+  mechanicName: string;
+  amount: number;
+  estimatedTime: string;
+  message: string;
+  _id: string;
+  createdAt: string;
+}
+
+interface MechanicBidListing {
+  _id: string;
+  ownerId: {
+    _id: string;
+    fullName: string;
+    profileImage: string;
+  };
+  ownerName: string;
+  vehicleLicensePlate: string;
+  description: string;
+  mediaFiles: Array<{
+    data: string;
+    type: string;
+    _id: string;
+  }>;
+  location: string;
+  status: 'open' | 'assigned' | 'completed';
+  selectedBidId: string;
+  bids: MechanicBid[];
+  createdAt: string;
+  updatedAt: string;
+  mechanicBid: MechanicBid;
+  bidStatus: 'selected' | 'pending';
+  isSelected: boolean;
 }
 
 interface ProfileData {
@@ -101,8 +137,10 @@ export default function ProfileScreen() {
     reviewCount: 0
   });
   const [repairRequests, setRepairRequests] = useState<RepairRequest[]>([]);
+  const [mechanicBids, setMechanicBids] = useState<MechanicBidListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingRepairs, setLoadingRepairs] = useState(true);
+  const [loadingBids, setLoadingBids] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const isDark = theme === 'dark';
@@ -115,6 +153,7 @@ export default function ProfileScreen() {
     fetchProfileData();
     if (!isVehicleOwner) {
       fetchReviews();
+      fetchMechanicBids();
     } else {
       fetchRepairRequests();
     }
@@ -122,7 +161,7 @@ export default function ProfileScreen() {
 
   const fetchProfileData = async () => {
     try {
-      const response = await fetch('http://192.168.64.95:5000/api/users/profile', {
+      const response = await fetch('http://192.168.1.103:5000/api/users/profile', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -165,7 +204,7 @@ export default function ProfileScreen() {
 
   const fetchReviews = async () => {
     try {
-      const response = await fetch('http://192.168.64.95:5000/api/reviews/me', {
+      const response = await fetch('http://192.168.1.103:5000/api/reviews/me', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -188,7 +227,7 @@ export default function ProfileScreen() {
 
   const fetchRepairRequests = async () => {
     try {
-      const response = await fetch('http://192.168.64.95:5000/api/repair-listings/me', {
+      const response = await fetch('http://192.168.1.103:5000/api/repair-listings/me', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -211,6 +250,33 @@ export default function ProfileScreen() {
     }
   };
 
+  const fetchMechanicBids = async () => {
+    try {
+      setLoadingBids(true);
+      
+      const response = await fetch('http://192.168.1.103:5000/api/repair-listings/mechanic-bids', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch mechanic bids');
+      }
+
+      const result = await response.json();
+      if (result.success && result.data) {
+        setMechanicBids(result.data);
+      }
+    } catch (err) {
+      console.error('Mechanic bids fetch error:', err);
+    } finally {
+      setLoadingBids(false);
+    }
+  };
+
   const handleDeleteReview = async (reviewId: string) => {
     Alert.alert(
       "Delete Review",
@@ -225,7 +291,7 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const response = await fetch(`http://192.168.64.95:5000/api/reviews/mechanic/review/${reviewId}`, {
+              const response = await fetch(`http://192.168.1.103:5000/api/reviews/mechanic/review/${reviewId}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -380,6 +446,88 @@ export default function ProfileScreen() {
               ))}
             </View>
           </View>
+
+          <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
+            <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>My Bids</Text>
+            {loadingBids ? (
+              <ActivityIndicator size="small" color={isDark ? '#fff' : '#000'} style={styles.loadingIndicator} />
+            ) : mechanicBids.length > 0 ? (
+              mechanicBids.map((bidListing) => (
+                <TouchableOpacity
+                  key={bidListing._id}
+                  style={[styles.listingItem, { backgroundColor: isDark ? '#1e1e1e' : '#ffffff' }]}
+                  onPress={() => handleViewListing(bidListing._id)}
+                >
+                  <View style={styles.listingHeader}>
+                    <Text style={[styles.listingTitle, { color: isDark ? '#fff' : '#000' }]}>
+                      {bidListing.vehicleLicensePlate}
+                    </Text>
+                    <View style={[
+                      styles.statusBadge,
+                      bidListing.status === 'open' ? styles.openStatus :
+                      bidListing.status === 'assigned' ? styles.assignedStatus :
+                      styles.completedStatus
+                    ]}>
+                      <Text style={styles.statusText}>{bidListing.status}</Text>
+                    </View>
+                  </View>
+                  
+                  <Text style={[styles.listingDescription, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>
+                    {bidListing.description.length > 100 ? bidListing.description.substring(0, 100) + '...' : bidListing.description}
+                  </Text>
+                  
+                  <View style={styles.bidDetailsContainer}>
+                    <View style={styles.bidDetailItem}>
+                      <DollarSign size={16} color={isDark ? '#3498db' : '#2980b9'} />
+                      <Text style={[styles.bidDetailText, { color: isDark ? '#fff' : '#000' }]}>
+                        {bidListing.mechanicBid.amount} TL
+                      </Text>
+                    </View>
+                    <View style={styles.bidDetailItem}>
+                      <Clock3 size={16} color={isDark ? '#3498db' : '#2980b9'} />
+                      <Text style={[styles.bidDetailText, { color: isDark ? '#fff' : '#000' }]}>
+                        {bidListing.mechanicBid.estimatedTime} hour(s)
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.listingFooter}>
+                    <View style={styles.infoRow}>
+                      <MapPin size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
+                      <Text style={[styles.listingInfo, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                        {bidListing.location}
+                      </Text>
+                    </View>
+                    <View style={styles.infoRow}>
+                      <Clock size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
+                      <Text style={[styles.listingInfo, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                        {new Date(bidListing.createdAt).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* Show bid status */}
+                  <View style={[
+                    styles.bidStatusBadge,
+                    bidListing.isSelected ? styles.selectedBidStatus : styles.pendingBidStatus
+                  ]}>
+                    <CheckCircle size={14} color={bidListing.isSelected ? '#fff' : '#f39c12'} />
+                    <Text style={[
+                      styles.bidStatusText,
+                      { color: bidListing.isSelected ? '#fff' : '#f39c12' }
+                    ]}>
+                      {bidListing.isSelected ? 'Selected' : 'Pending'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={[styles.emptyText, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                You haven't placed any bids yet
+              </Text>
+            )}
+          </View>
+          
           <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
             <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Reviews</Text>
             {reviewsData.reviews.length > 0 ? (
@@ -448,6 +596,9 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingIndicator: {
+    marginVertical: 20,
   },
   header: {
     alignItems: 'center',
@@ -627,5 +778,42 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
     fontWeight: '500',
+  },
+  bidDetailsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 8,
+    flexWrap: 'wrap',
+  },
+  bidDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+    marginBottom: 4,
+  },
+  bidDetailText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  bidStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  selectedBidStatus: {
+    backgroundColor: '#2ecc71',
+  },
+  pendingBidStatus: {
+    backgroundColor: 'rgba(243, 156, 18, 0.2)',
+  },
+  bidStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });

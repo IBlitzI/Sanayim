@@ -37,7 +37,7 @@ export default function ChatScreen() {
 
   const markAsRead = async (chatId: string) => {
     try {
-      await fetch(`http://192.168.64.95:5000/api/chat/${chatId}/read`, {
+      await fetch(`http://192.168.1.103:5000/api/chat/${chatId}/read`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -53,7 +53,7 @@ export default function ChatScreen() {
     const loadChat = async () => {
       try {
         if (!conversation) {
-          const response = await fetch(`http://192.168.64.95:5000/api/chat/${id}/messages`, {
+          const response = await fetch(`http://192.168.1.103:5000/api/chat/${id}/messages`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -109,7 +109,7 @@ export default function ChatScreen() {
     };
 
     try {
-      const response = await fetch(`http://192.168.64.95:5000/api/chat/messages`, {
+      const response = await fetch(`http://192.168.1.103:5000/api/chat/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

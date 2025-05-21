@@ -23,9 +23,17 @@ interface MediaFile {
   _id: string;
 }
 
+interface MechanicProfile {
+  _id: string;
+  fullName: string;
+  location: string;
+  specialties: string[];
+  profileImage: string;
+}
+
 interface Bid {
   _id: string;
-  mechanicId: string;
+  mechanicId: MechanicProfile;
   mechanicName: string;
   amount: number;
   estimatedTime: string;
@@ -98,7 +106,7 @@ export default function ListingDetailScreen() {
     }
     
     try {
-      const response = await fetch(`http://192.168.64.95:5000/api/repair-listings/${id}`, {
+      const response = await fetch(`http://192.168.1.103:5000/api/repair-listings/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -169,7 +177,7 @@ export default function ListingDetailScreen() {
     
     try {
       // Call the API endpoint as specified: router.post('/:id/bids', protect, authorize('mechanic'), submitBid)
-      const response = await fetch(`http://192.168.64.95:5000/api/repair-listings/${listing._id}/bids`, {
+      const response = await fetch(`http://192.168.1.103:5000/api/repair-listings/${listing._id}/bids`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -256,7 +264,7 @@ export default function ListingDetailScreen() {
               setLoading(true);
               
               // Call the API endpoint
-              const response = await fetch('http://192.168.64.95:5000/api/repair-listings/select-bid', {
+              const response = await fetch('http://192.168.1.103:5000/api/repair-listings/select-bid', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -288,11 +296,66 @@ export default function ListingDetailScreen() {
               const selectedBid = listing.bids.find(bid => bid._id === bidId);
               
               if (selectedBid) {
-                
+                // Ask if user wants to contact mechanic immediately
                 Alert.alert(
                   'Başarılı',
-                  'Teklif başarıyla seçildi. İlgili tamirci ile iletişime geçebilirsiniz.',
-                  [{ text: 'Tamam' }]
+                  'Teklif başarıyla seçildi. İlgili tamirci ile hemen iletişime geçmek ister misiniz?',
+                  [
+                    { 
+                      text: 'Hayır', 
+                      style: 'cancel'
+                    },
+                    { 
+                      text: 'Evet', 
+                      onPress: async () => {
+                        try {
+                          // Initialize chat with the mechanic
+                          const chatResponse = await fetch('http://192.168.1.103:5000/api/chat', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${token}`,
+                            },
+                            body: JSON.stringify({
+                              mechanicId: selectedBid.mechanicId._id,
+                            }),
+                          });
+                          
+                          if (!chatResponse.ok) {
+                            const errorData = await chatResponse.json();
+                            throw new Error(errorData.message || 'Failed to create chat');
+                          }
+                          
+                          const { success, data } = await chatResponse.json();
+                          
+                          if (success && data) {
+                            // Transform MongoDB chat data into frontend format
+                            const newChat = {
+                              id: data._id,
+                              participantId: selectedBid.mechanicId._id,
+                              participantName: selectedBid.mechanicId.fullName,
+                              participantImage: selectedBid.mechanicId.profileImage,
+                              lastMessage: '',
+                              lastMessageTime: data.lastMessage,
+                              unreadCount: 0,
+                              messages: []
+                            };
+                            
+                            // Add the chat to Redux store
+                            dispatch(createConversation(newChat));
+                            
+                            // Navigate to chat screen
+                            router.push(`/chat/${data._id}`);
+                          } else {
+                            throw new Error('Invalid response format');
+                          }
+                        } catch (error) {
+                          console.error('Error creating chat:', error);
+                          Alert.alert('Hata', 'Tamirci ile sohbet başlatılırken bir sorun oluştu');
+                        }
+                      }
+                    }
+                  ]
                 );
               }
             } catch (error) {

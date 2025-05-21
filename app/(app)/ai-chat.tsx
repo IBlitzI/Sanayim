@@ -72,7 +72,7 @@ export default function AIChatScreen() {
         } as any);
       }
 
-      const response = await fetch("http://192.168.64.95:5000/api/gemini/chat", {
+      const response = await fetch("http://192.168.1.103:5000/api/gemini/chat", {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -114,7 +114,7 @@ export default function AIChatScreen() {
 
   const handleClearHistory = async () => {
     try {
-      const response = await fetch("http://192.168.64.95:5000/api/gemini/history", {
+      const response = await fetch("http://192.168.1.103:5000/api/gemini/history", {
         method: 'DELETE',
         headers: {
           'Accept': 'application/json',

@@ -83,7 +83,7 @@ export default function CreateListingScreen() {
         } as any);
       });
 
-      const response = await fetch('http://192.168.64.95:5000/api/repair-listings', {
+      const response = await fetch('http://192.168.1.103:5000/api/repair-listings', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

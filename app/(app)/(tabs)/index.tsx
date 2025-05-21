@@ -82,7 +82,7 @@ export default function HomeScreen() {
       try {
         setLoading(true);
         if (isVehicleOwner && selectedZone) {
-          const response = await fetch('http://192.168.64.95:5000/api/repair-listings/mechanics', {
+          const response = await fetch('http://192.168.1.103:5000/api/repair-listings/mechanics', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ export default function HomeScreen() {
           dispatch(fetchMechanicsSuccess(data.data));
         } else if (!isVehicleOwner) {
           // Fetch repair requests for mechanics
-          const response = await fetch('http://192.168.64.95:5000/api/repair-listings/get-listings', {
+          const response = await fetch('http://192.168.1.103:5000/api/repair-listings/get-listings', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

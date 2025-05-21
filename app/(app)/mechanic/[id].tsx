@@ -92,7 +92,7 @@ export default function MechanicProfileScreen() {
       setReviewError(null);
       
       try {
-        const response = await fetch(`http://192.168.64.95:5000/api/reviews/mechanic/${mechanic._id}`, {
+        const response = await fetch(`http://192.168.1.103:5000/api/reviews/mechanic/${mechanic._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -126,7 +126,7 @@ export default function MechanicProfileScreen() {
 
   const handleContactMechanic = async () => {
     try {
-      const response = await fetch('http://192.168.64.95:5000/api/chat', {
+      const response = await fetch('http://192.168.1.103:5000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -181,7 +181,7 @@ export default function MechanicProfileScreen() {
     setSubmitError(null);
 
     try {
-      const response = await fetch('http://192.168.64.95:5000/api/reviews/mechanic', {
+      const response = await fetch('http://192.168.1.103:5000/api/reviews/mechanic', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
