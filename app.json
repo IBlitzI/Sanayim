@@ -8,6 +8,7 @@
     "scheme": "sanayim",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "projectId": "a064f946-4735-4723-90ce-348dce57bcfd",
     "ios": {
       "supportsTablet": true
     },
@@ -24,6 +25,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "a064f946-4735-4723-90ce-348dce57bcfd"
+      }
+    },
+    "owner": "blitz19"
   }
 }

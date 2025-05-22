@@ -4,10 +4,11 @@ import { Video, ResizeMode } from 'expo-av';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
-import { addBidToListing, selectBid } from '../../../store/slices/listingsSlice';
+import { addBidToListing, selectBid, updateListingStatus } from '../../../store/slices/listingsSlice';
 import { createConversation } from '../../../store/slices/chatSlice';
 import Button from '../../../components/Button';
 import { MapPin, Clock, DollarSign, Calendar } from 'lucide-react-native';
+import * as Notifications from 'expo-notifications';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -80,6 +81,7 @@ export default function ListingDetailScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [bidSubmitSuccess, setBidSubmitSuccess] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const flatListRef = useRef<FlatList<MediaFile>>(null);
   
   const isDark = theme === 'dark';
@@ -219,6 +221,9 @@ export default function ListingDetailScreen() {
       
       // Mark that the bid was submitted successfully
       bidSubmitted = true;
+      
+      // The server will send a push notification to the vehicle owner automatically
+      // since we've added the proper push token API endpoint
       
       // Show success alert
       Alert.alert(
@@ -373,6 +378,120 @@ export default function ListingDetailScreen() {
     );
   };
 
+  const handleCompleteListing = async () => {
+    Alert.alert(
+      "Complete Repair",
+      "Are you sure you want to mark this repair as completed?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Complete",
+          onPress: async () => {
+            try {
+              setIsCompleting(true);
+              
+              const response = await fetch('http://192.168.1.103:5000/api/repair-listings/complete', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  listingId: listing?._id
+                }),
+              });
+
+              if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to complete repair');
+              }
+
+              const result = await response.json();
+              
+              if (result.success) {
+                // Update local state to show completed status
+                if (listing) {
+                  setListing({
+                    ...listing,
+                    status: 'completed'
+                  });
+                }
+                
+                // Update the status in Redux
+                dispatch(updateListingStatus({ 
+                  listingId: listing?._id || '', 
+                  status: 'completed' 
+                }));
+
+                // Find the vehicle owner and send them a notification via chat
+                try {
+                  if (listing && listing.ownerId) {
+                    // Create or find chat with the vehicle owner
+                    const chatResponse = await fetch('http://192.168.1.103:5000/api/chat', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        mechanicId: listing.ownerId._id, // Send to vehicle owner
+                      }),
+                    });
+                    
+                    if (!chatResponse.ok) {
+                      throw new Error('Failed to create or find chat with vehicle owner');
+                    }
+                    
+                    const chatData = await chatResponse.json();
+                    
+                    if (chatData.success && chatData.data) {
+                      // Send message to the vehicle owner with payment link
+                      const messageContent = `Aracınızın tamiri tamamlandı. Ödeme ekranına gitmek için tıklayınız: [PAYMENT_LINK:${listing._id}]`;
+                      
+                      const messageResponse = await fetch(`http://192.168.1.103:5000/api/chat/messages`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          chatId: chatData.data._id,
+                          content: messageContent,
+                        }),
+                      });
+                      
+                      if (!messageResponse.ok) {
+                        console.error('Failed to send completion notification to vehicle owner');
+                      }
+                      
+                      // A push notification will be sent automatically through the backend
+                      // since the recipient of this message has their expo push token saved
+                    }
+                  }
+                } catch (chatError) {
+                  console.error('Error notifying vehicle owner:', chatError);
+                  // Don't throw the error as the main operation was successful
+                }
+                
+                Alert.alert('Success', 'The repair has been marked as completed!');
+              } else {
+                throw new Error(result.message || 'Failed to mark repair as completed');
+              }
+            } catch (error) {
+              console.error('Error completing listing:', error);
+              Alert.alert('Error', error instanceof Error ? error.message : 'Failed to mark repair as completed');
+            } finally {
+              setIsCompleting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderMediaItem = ({ item, index }: { item: MediaFile; index: number }) => {
     const isVideo = item.type === 'video';
     return (
@@ -503,6 +622,28 @@ export default function ListingDetailScreen() {
           </View>
         </View>
         
+        {/* Complete button for mechanic under the assigned status */}
+        {isMechanic && listing.status === 'assigned' && listing.selectedBidId && listing.bids.some(bid => 
+          bid._id === listing.selectedBidId && 
+          bid.mechanicId._id === user?.id
+        ) && (
+          <View style={{ alignItems: 'flex-end', marginTop: 8, marginBottom: 8 }}>
+            <TouchableOpacity 
+              onPress={handleCompleteListing}
+              disabled={isCompleting}
+              style={[
+                styles.statusBadge, 
+                styles.completeButtonBadge,
+                isCompleting && { opacity: 0.7 }
+              ]}
+            >
+              <Text style={styles.statusText}>
+                {isCompleting ? "Completing..." : "Mark as Completed"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
         <Text style={[styles.ownerName, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Owner: {listing.ownerId.fullName}</Text>
         
         <View style={styles.infoRow}>
@@ -630,7 +771,7 @@ export default function ListingDetailScreen() {
           />
         </View>
       )}
-
+      
       <Modal
         animationType="fade"
         transparent={true}
@@ -947,5 +1088,49 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  completeContainer: {
+    padding: 20,
+    borderRadius: 8,
+    backgroundColor: '#2ecc71',
+    marginBottom: 20,
+  },
+  completeTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#fff',
+  },
+  completeText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+    color: '#fff',
+  },
+  completeButton: {
+    backgroundColor: '#27ae60',
+  },
+  actionContainer: {
+    padding: 20,
+    borderRadius: 8,
+    marginBottom: 20,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  completionLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  completeButtonBadge: {
+    backgroundColor: '#2ecc71',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
   },
 });

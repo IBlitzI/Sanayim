@@ -11,39 +11,116 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useSelector, useDispatch } from 'react-redux';
+import { useLocalSearchParams,useRouter } from 'expo-router';
+import { useSelector, useDispatch} from 'react-redux';
 import { RootState } from '../../../store';
 import {
   setActiveConversation,
   sendMessage,
+  receiveMessage,
   createConversation,
+  setUnreadCount, // <-- yeni ekledik
 } from '../../../store/slices/chatSlice';
 import { Send } from 'lucide-react-native';
+import { io, Socket } from 'socket.io-client';
+
+// Server URL
+const SERVER_URL = 'http://192.168.1.103:5000';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
   const dispatch = useDispatch();
   const { user, token } = useSelector((state: RootState) => state.auth);
   const { conversations, activeConversation } = useSelector((state: RootState) => state.chat);
-
+  const router = useRouter();
   const [messageText, setMessageText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   const conversation = conversations.find((c) => c.id === id);
   const { theme } = useSelector((state: RootState) => state.settings);
   const isDark = theme === 'dark';
 
+  // Socket.IO connection setup
+  useEffect(() => {
+    if (token && id) {
+      // Connect to Socket.IO server with authentication
+      socketRef.current = io(SERVER_URL, {
+        auth: { token },
+        query: { chatId: id }
+      });
+
+      // Join the chat room for real-time updates
+      socketRef.current.on('connect', () => {
+        console.log('Chat screen socket connected');
+        socketRef.current?.emit('join chat', id);
+      });
+
+      // Listen for new messages (correct event name from backend)
+      socketRef.current.on('message received', (data) => {
+        // Only process if it's the right chat and not our own message 
+        if (data.message?.senderId !== user?.id && data.chatId === id) {
+          console.log('New message received via socket in chat screen:', data);
+          // Transform the message to match our app's format if needed
+          const message = {
+            id: data.message._id || `msg-${Date.now()}`,
+            senderId: data.message.senderId,
+            receiverId: user?.id || '',
+            content: data.message.content,
+            timestamp: data.message.timestamp || new Date().toISOString(),
+            read: false
+          };
+          // Update chat with the new message
+          dispatch(receiveMessage({ 
+            conversationId: id.toString(), 
+            message: message 
+          }));
+          // Force UI update by scrolling to bottom
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+          // Mark as read since we're in the chat
+          markAsRead(id.toString());
+        }
+      });
+
+      socketRef.current.on('disconnect', () => {
+        console.log('Chat screen socket disconnected');
+      });
+
+      socketRef.current.on('connect_error', (err) => {
+        console.error('Chat screen socket connection error:', err);
+      });
+
+      // Clean up on component unmount
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+          socketRef.current = null;
+        }
+      };
+    }
+  }, [id, token, user?.id]);
+
   const markAsRead = async (chatId: string) => {
     try {
-      await fetch(`http://192.168.1.103:5000/api/chat/${chatId}/read`, {
+      const response = await fetch(`${SERVER_URL}/api/chat/${chatId}/read`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
+      if (response.ok) {
+        const data = await response.json();
+        // Backend unreadCount döndürüyorsa onu kullan, yoksa elle sıfırla
+        if (data.unreadCount !== undefined) {
+          dispatch(setUnreadCount({ conversationId: chatId, count: data.unreadCount }));
+        } else {
+          dispatch(setUnreadCount({ conversationId: chatId, count: 0 }));
+        }
+      }
     } catch (error) {
       console.error('Error marking chat as read:', error);
     }
@@ -53,7 +130,7 @@ export default function ChatScreen() {
     const loadChat = async () => {
       try {
         if (!conversation) {
-          const response = await fetch(`http://192.168.1.103:5000/api/chat/${id}/messages`, {
+          const response = await fetch(`${SERVER_URL}/api/chat/${id}/messages`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -109,7 +186,7 @@ export default function ChatScreen() {
     };
 
     try {
-      const response = await fetch(`http://192.168.1.103:5000/api/chat/messages`, {
+      const response = await fetch(`${SERVER_URL}/api/chat/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,8 +205,12 @@ export default function ChatScreen() {
       const responseData = await response.json();
 
       if (responseData.success) {
+        // Update local state with sent message
         dispatch(sendMessage({ conversationId: activeConversation.id, message: newMessage }));
         setMessageText('');
+        
+        // Scroll to the bottom
+        flatListRef.current?.scrollToEnd({ animated: true });
       } else {
         throw new Error(responseData.message || 'Failed to send message');
       }
@@ -147,6 +228,19 @@ export default function ChatScreen() {
   const renderMessage = ({ item }: { item: any }) => {
     const isCurrentUser = item.senderId === user?.id || item.senderId === 'current-user';
     
+    // Check if the message contains a payment link
+    const hasPaymentLink = item.content && item.content.includes('[PAYMENT_LINK:');
+    let normalContent = item.content;
+    let paymentListingId = '';
+    
+    // Extract the payment listing ID if present
+    if (hasPaymentLink) {
+      const match = item.content.match(/\[PAYMENT_LINK:(.*?)\]/);
+      if (match && match[1]) {
+        paymentListingId = match[1];
+        normalContent = item.content.replace(/\[PAYMENT_LINK:.*?\]/, '');
+      }
+    }
 
     return (
       <View
@@ -162,7 +256,17 @@ export default function ChatScreen() {
           ]}
         > 
           <Text style={styles.messageParticipantName}>{item.senderId === user?.id ? 'You' : activeConversation?.participantName}</Text>
-          <Text style={styles.messageText}>{item.content}</Text>
+          <Text style={styles.messageText}>{normalContent}</Text>
+          
+          {hasPaymentLink && (
+            <TouchableOpacity
+              style={styles.paymentButton}
+              onPress={() => router.push(`/payment/${paymentListingId}`)}
+            >
+              <Text style={styles.paymentButtonText}>Ödeme Yap</Text>
+            </TouchableOpacity>
+          )}
+          
           <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
         </View>
       </View>
@@ -189,7 +293,6 @@ export default function ChatScreen() {
           <Text style={[styles.headerName, { color: isDark ? '#fff' : '#000' }]}>
             {activeConversation.participantName}
           </Text>
-          <Text style={[styles.headerStatus, { color: isDark ? '#2ecc71' : '#27ae60' }]}>Online</Text>
         </View>
       </View>
 
@@ -201,6 +304,7 @@ export default function ChatScreen() {
         contentContainerStyle={styles.messagesContainer}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        extraData={activeConversation.messages.length} // Ensure re-render when new messages arrive
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: isDark ? '#fff' : '#000' }]}>No messages yet</Text>
@@ -350,6 +454,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  paymentButton: {
+    backgroundColor: '#2ecc71',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  paymentButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   disabledSendButton: {
     backgroundColor: '#95a5a6',

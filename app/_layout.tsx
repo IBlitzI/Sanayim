@@ -7,7 +7,8 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { useFrameworkReady } from '../hooks/useFrameworkReady';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import { View } from 'react-native';
 
 // Inner component to handle auth state and routing
@@ -15,6 +16,8 @@ function AppContent() {
   const { theme } = useSelector((state: RootState) => state.settings);
   const { isAuthenticated, token } = useSelector((state: RootState) => state.auth);
   useFrameworkReady();
+  // Initialize push notifications
+  usePushNotifications();
 
   const isDark = theme === 'dark';
   const navigationTheme = isDark 

@@ -129,6 +129,8 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+
+
       <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
         <Text style={[styles.sectionTitle, { color: isDark ? '#3498db' : '#2980b9' }]}>Support</Text>
 

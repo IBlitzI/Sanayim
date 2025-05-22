@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
-import { fetchConversationsSuccess } from '../../../store/slices/chatSlice';
+import { fetchConversationsSuccess, receiveMessage } from '../../../store/slices/chatSlice';
+import { io, Socket } from 'socket.io-client';
+
+// Server URL
+const SERVER_URL = 'http://192.168.1.103:5000';
 
 export default function MessagesScreen() {
   const router = useRouter();
@@ -15,12 +19,67 @@ export default function MessagesScreen() {
   const [error, setError] = useState<string | null>(null);
   const { theme } = useSelector((state: RootState) => state.settings);
   const isDark = theme === 'dark';
+  const socketRef = useRef<Socket | null>(null);
+
+  // Socket.IO connection for real-time updates
+  useEffect(() => {
+    if (token) {
+      // Connect to Socket.IO server with authentication
+      socketRef.current = io(SERVER_URL, {
+        auth: { token }
+      });
+
+      // Listen for new messages (use the same event as chat screen)
+      socketRef.current.on('message received', (data) => {
+        // Kendi mesajımızı da işleyelim, sadece chat ekranında değil, burada da!
+        // Her iki kullanıcı da mesajı anında görmeli
+        // Transform the message to match our app's format
+        const message = {
+          id: data.message._id || `msg-${Date.now()}`,
+          senderId: data.message.senderId,
+          receiverId: user?.id || '',
+          content: data.message.content,
+          timestamp: data.message.timestamp || new Date().toISOString(),
+          read: false
+        };
+        dispatch(receiveMessage({ 
+          conversationId: data.chatId, 
+          message: message 
+        }));
+        // Listeyi güncelle (unreadCount ve son mesaj için)
+        setTimeout(() => {
+          fetchChats(true);
+        }, 300);
+      });
+
+      // Connection status events
+      socketRef.current.on('connect', () => {
+        console.log('Messages screen socket connected');
+      });
+
+      socketRef.current.on('disconnect', () => {
+        console.log('Messages screen socket disconnected');
+      });
+
+      socketRef.current.on('connect_error', (err) => {
+        console.error('Messages screen socket connection error:', err);
+      });
+
+      // Clean up on component unmount
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+          socketRef.current = null;
+        }
+      };
+    }
+  }, [token, user?.id]);
 
   const fetchChats = async (isRefreshing = false) => {
     if (!token) return;
 
     try {
-      const response = await fetch('http://192.168.1.103:5000/api/chat', {
+      const response = await fetch(`${SERVER_URL}/api/chat`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -102,6 +161,7 @@ export default function MessagesScreen() {
 
   const renderConversationItem = ({ item }: { item: any }) => (
     <TouchableOpacity
+      key={`${item.id}-${item.lastMessageTime}`} // Add key to force re-render when changes occur
       style={[styles.conversationItem, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}
       onPress={() => handleConversationPress(item.id)}
     >
@@ -161,6 +221,7 @@ export default function MessagesScreen() {
         data={conversations}
         renderItem={renderConversationItem}
         keyExtractor={(item) => item.id}
+        extraData={conversations.map(c => `${c.id}-${c.lastMessageTime}-${c.unreadCount}`).join(',')} // Force refresh when messages or unread counts change
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl

@@ -12,6 +12,7 @@ interface User {
   profileImage?: string;
   rating?: number;
   specialties?: string[];
+  expoPushToken?: string;
 }
 
 interface AuthState {
@@ -86,6 +87,13 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    updatePushToken: (state, action: PayloadAction<string>) => {
+      if (state.user) {
+        state.user.expoPushToken = action.payload;
+        // Also update in AsyncStorage
+        AsyncStorage.setItem('user_data', JSON.stringify(state.user));
+      }
+    },
   },
 });
 
@@ -95,8 +103,9 @@ export const {
   loginFailure, 
   logout, 
   initializeAuth,
-  updateUserProfile, 
-  clearError 
+  updateUserProfile,
+  clearError,
+  updatePushToken
 } = authSlice.actions;
 
 export default authSlice.reducer;
