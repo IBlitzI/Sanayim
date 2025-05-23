@@ -6,6 +6,7 @@ import { RootState } from '../../../store';
 import { updateUserProfile } from '../../../store/slices/authSlice';
 import Button from '../../../components/Button';
 import { Star, MapPin, PenTool as Tool, Car, Clock, CircleCheck as CheckCircle, MessageSquare, Trash2, DollarSign, Clock3 } from 'lucide-react-native';
+import Constants from 'expo-constants';
 
 interface Review {
   _id: string;
@@ -124,6 +125,7 @@ const parseSpecialties = (specialtiesData: string[]) => {
 };
 
 export default function ProfileScreen() {
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
   const router = useRouter();
   const dispatch = useDispatch();
   const { token } = useSelector((state: RootState) => state.auth);
@@ -149,19 +151,26 @@ export default function ProfileScreen() {
   // Filter listings for the current user - ALL statuses, not just open
   const userListings = listings.filter(listing => listing.ownerId === profileData?._id);
 
+  // İlk useEffect sadece profili çeksin
   useEffect(() => {
     fetchProfileData();
-    if (!isVehicleOwner) {
+    // Diğer fetch'ler profileData geldikten sonra ayrı useEffect'te çağrılacak
+  }, []);
+
+  // profileData ve userType geldikten sonra ilgili fetch'leri çağır
+  useEffect(() => {
+    if (!profileData) return;
+    if (profileData.userType === 'mechanic') {
       fetchReviews();
       fetchMechanicBids();
-    } else {
+    } else if (profileData.userType === 'vehicle_owner') {
       fetchRepairRequests();
     }
-  }, [isVehicleOwner]);
+  }, [profileData]);
 
   const fetchProfileData = async () => {
     try {
-      const response = await fetch('http://192.168.1.103:5000/api/users/profile', {
+      const response = await fetch(`${baseUrl}/api/users/profile`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -204,7 +213,7 @@ export default function ProfileScreen() {
 
   const fetchReviews = async () => {
     try {
-      const response = await fetch('http://192.168.1.103:5000/api/reviews/me', {
+      const response = await fetch(`${baseUrl}/api/reviews/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -227,7 +236,7 @@ export default function ProfileScreen() {
 
   const fetchRepairRequests = async () => {
     try {
-      const response = await fetch('http://192.168.1.103:5000/api/repair-listings/me', {
+      const response = await fetch(`${baseUrl}/api/repair-listings/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -254,7 +263,7 @@ export default function ProfileScreen() {
     try {
       setLoadingBids(true);
       
-      const response = await fetch('http://192.168.1.103:5000/api/repair-listings/mechanic-bids', {
+      const response = await fetch(`${baseUrl}/api/repair-listings/mechanic-bids`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -291,7 +300,7 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const response = await fetch(`http://192.168.1.103:5000/api/reviews/mechanic/review/${reviewId}`, {
+              const response = await fetch(`${baseUrl}/api/reviews/mechanic/review/${reviewId}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -348,7 +357,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}> 
       <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
         <Image
           source={{ uri: profileData?.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
@@ -382,7 +391,11 @@ export default function ProfileScreen() {
       {isVehicleOwner ? (
         <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
           <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>My Repair Requests</Text>
-          {repairRequests.length > 0 ? (
+          {loadingRepairs ? (
+            <View style={styles.centerContent}>
+              <ActivityIndicator size="small" color={isDark ? '#fff' : '#000'} style={styles.loadingIndicator} />
+            </View>
+          ) : repairRequests.length > 0 ? (
             repairRequests.map((request) => (
               <TouchableOpacity
                 key={request._id}
@@ -450,7 +463,9 @@ export default function ProfileScreen() {
           <View style={[styles.section, { borderBottomColor: isDark ? '#2c2c2c' : '#e0e0e0' }]}>
             <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>My Bids</Text>
             {loadingBids ? (
-              <ActivityIndicator size="small" color={isDark ? '#fff' : '#000'} style={styles.loadingIndicator} />
+              <View style={styles.centerContent}>
+                <ActivityIndicator size="small" color={isDark ? '#fff' : '#000'} style={styles.loadingIndicator} />
+              </View>
             ) : mechanicBids.length > 0 ? (
               mechanicBids.map((bidListing) => (
                 <TouchableOpacity

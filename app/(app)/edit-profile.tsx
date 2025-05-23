@@ -7,6 +7,7 @@ import { updateUserProfile } from '../../store/slices/authSlice';
 import Button from '../../components/Button';
 import * as ImagePicker from 'expo-image-picker';
 import { ArrowLeft, Camera, ChevronDown, ChevronUp } from 'lucide-react-native';
+import Constants from 'expo-constants';
 
 const SPECIALTY_CATEGORIES = {
   'Motor ve Güç Aktarımı': [
@@ -69,6 +70,7 @@ const SPECIALTY_CATEGORIES = {
 };
 
 export default function EditProfileScreen() {
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
   const router = useRouter();
   const dispatch = useDispatch();
   const { user, token } = useSelector((state: RootState) => state.auth);
@@ -180,7 +182,7 @@ export default function EditProfileScreen() {
         } as any);
       }
 
-      const response = await fetch('http://192.168.1.103:5000/api/users/profile', {
+      const response = await fetch(`${baseUrl}/api/users/profile`, {
         method: 'PUT',
         headers: {
           'Accept': 'application/json',

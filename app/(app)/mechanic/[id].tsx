@@ -6,7 +6,8 @@ import { RootState } from '../../../store';
 import { setSelectedMechanic } from '../../../store/slices/listingsSlice';
 import { createConversation } from '../../../store/slices/chatSlice';
 import Button from '../../../components/Button';
-import { Star, MapPin, PenTool as Tool, MessageSquare } from 'lucide-react-native';
+import { Star, MapPin, PenTool as Tool, MessageSquare, ChevronLeft } from 'lucide-react-native';
+import Constants from 'expo-constants';
 
 const parseSpecialties = (specialtiesData: string[]) => {
   if (!specialtiesData || !specialtiesData.length) return [];
@@ -57,6 +58,7 @@ interface ReviewsData {
 }
 
 export default function MechanicProfileScreen() {
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const dispatch = useDispatch();
@@ -92,7 +94,7 @@ export default function MechanicProfileScreen() {
       setReviewError(null);
       
       try {
-        const response = await fetch(`http://192.168.1.103:5000/api/reviews/mechanic/${mechanic._id}`, {
+        const response = await fetch(`${baseUrl}/api/reviews/mechanic/${mechanic._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -126,7 +128,7 @@ export default function MechanicProfileScreen() {
 
   const handleContactMechanic = async () => {
     try {
-      const response = await fetch('http://192.168.1.103:5000/api/chat', {
+      const response = await fetch(`${baseUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -181,7 +183,7 @@ export default function MechanicProfileScreen() {
     setSubmitError(null);
 
     try {
-      const response = await fetch('http://192.168.1.103:5000/api/reviews/mechanic', {
+      const response = await fetch(`${baseUrl}/api/reviews/mechanic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -214,146 +216,169 @@ export default function MechanicProfileScreen() {
   const parsedSpecialties = parseSpecialties(mechanic.specialties || []);
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
-      <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#cccccc' }]}>
-        <Image
-          source={{ uri: mechanic.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
-          style={styles.profileImage}
-        />
-        <Text style={[styles.name, { color: isDark ? '#fff' : '#000' }]}>{mechanic.fullName}</Text>
-        
-        <View style={styles.ratingContainer}>
-          <Star size={18} color="#f1c40f" fill="#f1c40f" />
-          <Text style={[styles.rating, { color: isDark ? '#f1c40f' : '#f39c12' }]}>{(reviewsData.rating || 0).toFixed(1)}</Text>
-          <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>({reviewsData.reviewCount || 0} reviews)</Text>
-        </View>
-        
-        <View style={styles.locationContainer}>
-          <MapPin size={16} color={isDark ? '#3498db' : '#2980b9'} />
-          <Text style={[styles.location, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{mechanic.location}</Text>
-        </View>
-      </View>
-      
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Specialties</Text>
-        <View style={styles.specialtiesContainer}>
-          {parsedSpecialties.map((specialty, index) => (
-            <View key={index} style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1' }]}>
-              <Tool size={14} color={isDark ? '#fff' : '#000'} />
-              <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>{specialty}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-      
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Reviews</Text>
-        
-        {user?.userType === 'vehicle_owner' && (
-          <View style={[styles.addReviewContainer, { backgroundColor: isDark ? '#1e1e1e' : '#f5f5f5' }]}>
-            <Text style={[styles.addReviewTitle, { color: isDark ? '#fff' : '#000' }]}>Add Your Review</Text>
-            
-            <View style={styles.ratingInputContainer}>
-              <Text style={[styles.ratingLabel, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Rating:</Text>
-              <View style={styles.starContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity
-                    key={star}
-                    onPress={() => setRating(star)}
-                    style={styles.starButton}
-                  >
-                    <Star
-                      size={24}
-                      color="#f1c40f"
-                      fill={star <= rating ? "#f1c40f" : "transparent"}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <TextInput
-              style={[
-                styles.commentInput,
-                { 
-                  backgroundColor: isDark ? '#2c3e50' : '#fff',
-                  color: isDark ? '#fff' : '#000',
-                  borderColor: isDark ? '#3498db' : '#bdc3c7'
-                }
-              ]}
-              placeholder="Write your review..."
-              placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
-              value={comment}
-              onChangeText={setComment}
-              multiline
-              numberOfLines={4}
-            />
-
-            {submitError && (
-              <Text style={styles.errorText}>{submitError}</Text>
-            )}
-
-            <Button
-              title={isSubmitting ? "Submitting..." : "Submit Review"}
-              onPress={handleAddReview}
-              disabled={isSubmitting}
-              style={StyleSheet.flatten([
-                styles.submitButton,
-                isSubmitting && { opacity: 0.7 }
-              ])}
-            />
+    <>
+      <TouchableOpacity
+        style={[
+          {
+            position: 'absolute',
+            top: 40,
+            left: 16,
+            zIndex: 100,
+            backgroundColor: isDark ? '#222' : '#fff',
+            borderRadius: 20,
+            padding: 6,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 4,
+            elevation: 3,
+          },
+        ]}
+        onPress={() => router.replace('/(app)/(tabs)')}
+      >
+        <ChevronLeft size={28} color={isDark ? '#fff' : '#222'} />
+      </TouchableOpacity>
+      <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
+        <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#cccccc' }]}>
+          <Image
+            source={{ uri: mechanic.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
+            style={styles.profileImage}
+          />
+          <Text style={[styles.name, { color: isDark ? '#fff' : '#000' }]}>{mechanic.fullName}</Text>
+          
+          <View style={styles.ratingContainer}>
+            <Star size={18} color="#f1c40f" fill="#f1c40f" />
+            <Text style={[styles.rating, { color: isDark ? '#f1c40f' : '#f39c12' }]}>{(reviewsData.rating || 0).toFixed(1)}</Text>
+            <Text style={[styles.ratingCount, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>({reviewsData.reviewCount || 0} reviews)</Text>
           </View>
-        )}
-
-        {isLoadingReviews ? (
-          <Text style={[styles.loadingText, { color: isDark ? '#fff' : '#000' }]}>Loading reviews...</Text>
-        ) : reviewError ? (
-          <Text style={[styles.errorText, { color: isDark ? '#ff6b6b' : '#e74c3c' }]}>{reviewError}</Text>
-        ) : (
-          reviewsData.reviews.map((review) => (
-            <View key={review._id} style={[styles.reviewItem, { backgroundColor: isDark ? '#1e1e1e' : '#f5f5f5' }]}>
-              <View style={styles.reviewHeader}>
-                <View style={styles.reviewerInfo}>
-                  <Image
-                    source={{ 
-                      uri: review.reviewerId.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80'
-                    }}
-                    style={styles.reviewerImage}
-                  />
-                  <Text style={[styles.reviewerName, { color: isDark ? '#fff' : '#000' }]}>
-                    {review.reviewerId.fullName}
-                  </Text>
-                </View>
-                <View style={styles.reviewRating}>
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      size={14}
-                      color="#f1c40f"
-                      fill={i < review.rating ? "#f1c40f" : "transparent"}
-                    />
+          
+          <View style={styles.locationContainer}>
+            <MapPin size={16} color={isDark ? '#3498db' : '#2980b9'} />
+            <Text style={[styles.location, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>{mechanic.location}</Text>
+          </View>
+        </View>
+        
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Specialties</Text>
+          <View style={styles.specialtiesContainer}>
+            {parsedSpecialties.map((specialty, index) => (
+              <View key={index} style={[styles.specialtyBadge, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1' }]}>
+                <Tool size={14} color={isDark ? '#fff' : '#000'} />
+                <Text style={[styles.specialtyText, { color: isDark ? '#fff' : '#000' }]}>{specialty}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Reviews</Text>
+          
+          {user?.userType === 'vehicle_owner' && (
+            <View style={[styles.addReviewContainer, { backgroundColor: isDark ? '#1e1e1e' : '#f5f5f5' }]}>
+              <Text style={[styles.addReviewTitle, { color: isDark ? '#fff' : '#000' }]}>Add Your Review</Text>
+              
+              <View style={styles.ratingInputContainer}>
+                <Text style={[styles.ratingLabel, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>Rating:</Text>
+                <View style={styles.starContainer}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      onPress={() => setRating(star)}
+                      style={styles.starButton}
+                    >
+                      <Star
+                        size={24}
+                        color="#f1c40f"
+                        fill={star <= rating ? "#f1c40f" : "transparent"}
+                      />
+                    </TouchableOpacity>
                   ))}
                 </View>
               </View>
-              <Text style={[styles.reviewComment, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>
-                {review.comment}
-              </Text>
-              <Text style={[styles.reviewDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
-                {new Date(review.createdAt).toLocaleDateString()}
-              </Text>
+
+              <TextInput
+                style={[
+                  styles.commentInput,
+                  { 
+                    backgroundColor: isDark ? '#2c3e50' : '#fff',
+                    color: isDark ? '#fff' : '#000',
+                    borderColor: isDark ? '#3498db' : '#bdc3c7'
+                  }
+                ]}
+                placeholder="Write your review..."
+                placeholderTextColor={isDark ? '#95a5a6' : '#7f8c8d'}
+                value={comment}
+                onChangeText={setComment}
+                multiline
+                numberOfLines={4}
+              />
+
+              {submitError && (
+                <Text style={styles.errorText}>{submitError}</Text>
+              )}
+
+              <Button
+                title={isSubmitting ? "Submitting..." : "Submit Review"}
+                onPress={handleAddReview}
+                disabled={isSubmitting}
+                style={StyleSheet.flatten([
+                  styles.submitButton,
+                  isSubmitting && { opacity: 0.7 }
+                ])}
+              />
             </View>
-          ))
-        )}
-      </View>
-      
-      <View style={styles.actionContainer}>
-        <Button
-          title="Contact Mechanic"
-          onPress={handleContactMechanic}
-          textStyle={styles.contactButtonText}
-        />
-      </View>
-    </ScrollView>
+          )}
+
+          {isLoadingReviews ? (
+            <Text style={[styles.loadingText, { color: isDark ? '#fff' : '#000' }]}>Loading reviews...</Text>
+          ) : reviewError ? (
+            <Text style={[styles.errorText, { color: isDark ? '#ff6b6b' : '#e74c3c' }]}>{reviewError}</Text>
+          ) : (
+            reviewsData.reviews.map((review) => (
+              <View key={review._id} style={[styles.reviewItem, { backgroundColor: isDark ? '#1e1e1e' : '#f5f5f5' }]}>
+                <View style={styles.reviewHeader}>
+                  <View style={styles.reviewerInfo}>
+                    <Image
+                      source={{ 
+                        uri: review.reviewerId.profileImage || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80'
+                      }}
+                      style={styles.reviewerImage}
+                    />
+                    <Text style={[styles.reviewerName, { color: isDark ? '#fff' : '#000' }]}>
+                      {review.reviewerId.fullName}
+                    </Text>
+                  </View>
+                  <View style={styles.reviewRating}>
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        size={14}
+                        color="#f1c40f"
+                        fill={i < review.rating ? "#f1c40f" : "transparent"}
+                      />
+                    ))}
+                  </View>
+                </View>
+                <Text style={[styles.reviewComment, { color: isDark ? '#ecf0f1' : '#2c3e50' }]}>
+                  {review.comment}
+                </Text>
+                <Text style={[styles.reviewDate, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                  {new Date(review.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+        
+        <View style={styles.actionContainer}>
+          <Button
+            title="Contact Mechanic"
+            onPress={handleContactMechanic}
+            textStyle={styles.contactButtonText}
+          />
+        </View>
+      </ScrollView>
+    </>
   );
 }
 

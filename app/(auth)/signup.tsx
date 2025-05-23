@@ -5,8 +5,10 @@ import Input from '../../components/Input';
 import Button from '../../components/Button';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'lucide-react-native';
+import Constants from 'expo-constants';
 
 export default function SignupScreen() {
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
   const router = useRouter();
 
   const [fullName, setFullName] = useState('');
@@ -93,7 +95,7 @@ Teşekkürler.`;
         } as any);
       }
 
-      const response = await fetch('http://192.168.1.103:5000/api/users/register', {
+      const response = await fetch(`${baseUrl}/api/users/register`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -172,6 +174,27 @@ Teşekkürler.`;
 
           {userType === 'vehicle_owner' ? (
             <>
+              <View style={styles.profileImageContainer}>
+                <TouchableOpacity 
+                  style={styles.profileImageWrapper} 
+                  onPress={pickImage}
+                >
+                  {profileImage ? (
+                    <Image 
+                      source={{ uri: profileImage }} 
+                      style={styles.profileImage} 
+                    />
+                  ) : (
+                    <View style={styles.profileImagePlaceholder}>
+                      <Camera size={40} color="#3498db" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.profileImageText}>
+                  {profileImage ? "Change Profile Photo" : "Add Profile Photo (Optional)"}
+                </Text>
+              </View>
+
               <Input
                 label="Full Name"
                 value={fullName}
@@ -290,6 +313,37 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 67,
+  },
+  profileImageContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  profileImageWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#1e1e1e',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#3498db',
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: '100%',
+    height: '100%',
+  },
+  profileImagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  profileImageText: {
+    color: '#3498db',
+    fontSize: 14,
+    fontWeight: '500',
   },
   appName: {
     fontSize: 38,

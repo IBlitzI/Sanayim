@@ -6,8 +6,10 @@ import { logout } from '../../../store/slices/authSlice';
 import { toggleTheme, toggleNotifications } from '../../../store/slices/settingsSlice';
 import { RootState } from '../../../store';
 import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOut, Moon, Sun } from 'lucide-react-native';
+import Constants from 'expo-constants';
 
 export default function SettingsScreen() {
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
   const dispatch = useDispatch();
   const router = useRouter();
   const { user, token } = useSelector((state: RootState) => state.auth);
@@ -29,7 +31,7 @@ export default function SettingsScreen() {
           onPress: async () => {
             try {
               // API'ye logout isteği gönder
-              const response = await fetch('http://192.168.1.103:5000/api/users/logout', {
+              const response = await fetch(`${baseUrl}/api/users/logout`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,

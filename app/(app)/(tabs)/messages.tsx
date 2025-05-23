@@ -5,9 +5,10 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store';
 import { fetchConversationsSuccess, receiveMessage } from '../../../store/slices/chatSlice';
 import { io, Socket } from 'socket.io-client';
+import Constants from 'expo-constants';
 
 // Server URL
-const SERVER_URL = 'http://192.168.1.103:5000';
+const SERVER_URL = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
 
 export default function MessagesScreen() {
   const router = useRouter();

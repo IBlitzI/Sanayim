@@ -11,7 +11,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams,useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useGlobalSearchParams } from 'expo-router';
 import { useSelector, useDispatch} from 'react-redux';
 import { RootState } from '../../../store';
 import {
@@ -23,12 +23,14 @@ import {
 } from '../../../store/slices/chatSlice';
 import { Send } from 'lucide-react-native';
 import { io, Socket } from 'socket.io-client';
+import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Server URL
-const SERVER_URL = 'http://192.168.1.103:5000';
+const SERVER_URL = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
 
 export default function ChatScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, paid, paidListingId } = useLocalSearchParams();
   const dispatch = useDispatch();
   const { user, token } = useSelector((state: RootState) => state.auth);
   const { conversations, activeConversation } = useSelector((state: RootState) => state.chat);
@@ -37,6 +39,33 @@ export default function ChatScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
   const socketRef = useRef<Socket | null>(null);
+  const [paidListings, setPaidListings] = useState<string[]>([]);
+
+  // Normalize paidListingId to string
+  const paidListingIdStr = Array.isArray(paidListingId) ? paidListingId[0] : paidListingId;
+
+  // Load paid listings from AsyncStorage on mount
+  useEffect(() => {
+    AsyncStorage.getItem('paidListings').then((data) => {
+      if (data) {
+        setPaidListings(JSON.parse(data));
+      }
+    });
+  }, []);
+
+  // Update paid listings in state and AsyncStorage when payment param is present
+  useEffect(() => {
+    if (paid === 'true' && paidListingIdStr) {
+      setPaidListings((prev) => {
+        if (!prev.includes(paidListingIdStr)) {
+          const updated = [...prev, paidListingIdStr];
+          AsyncStorage.setItem('paidListings', JSON.stringify(updated));
+          return updated;
+        }
+        return prev;
+      });
+    }
+  }, [paid, paidListingIdStr]);
 
   const conversation = conversations.find((c) => c.id === id);
   const { theme } = useSelector((state: RootState) => state.settings);
@@ -242,6 +271,9 @@ export default function ChatScreen() {
       }
     }
 
+    // Hide payment button if this paymentListingId is in paidListings
+    const isPaid = paymentListingId && paidListings.includes(paymentListingId);
+
     return (
       <View
         style={[
@@ -257,16 +289,14 @@ export default function ChatScreen() {
         > 
           <Text style={styles.messageParticipantName}>{item.senderId === user?.id ? 'You' : activeConversation?.participantName}</Text>
           <Text style={styles.messageText}>{normalContent}</Text>
-          
-          {hasPaymentLink && (
+          {hasPaymentLink && user?.userType === 'vehicle_owner' && !isPaid && (
             <TouchableOpacity
               style={styles.paymentButton}
-              onPress={() => router.push(`/payment/${paymentListingId}`)}
+              onPress={() => router.push({ pathname: '/(app)/payment/[id]', params: { id: paymentListingId, chatId: id } })}
             >
               <Text style={styles.paymentButtonText}>Ödeme Yap</Text>
             </TouchableOpacity>
           )}
-          
           <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
         </View>
       </View>
@@ -287,10 +317,16 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#cccccc' }]}>
+      <View style={[styles.header, { borderBottomColor: isDark ? '#2c2c2c' : '#cccccc', flexDirection: 'row', alignItems: 'center' }]}> 
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.replace('/(app)/(tabs)/messages')}
+        >
+          <Text style={{ color: isDark ? '#fff' : '#222', fontSize: 18 }}>&lt;</Text>
+        </TouchableOpacity>
         <Image source={{ uri: activeConversation.participantImage }} style={styles.avatar} />
         <View style={styles.headerInfo}>
-          <Text style={[styles.headerName, { color: isDark ? '#fff' : '#000' }]}>
+          <Text style={[styles.headerName, { color: isDark ? '#fff' : '#000' }]}> 
             {activeConversation.participantName}
           </Text>
         </View>
@@ -366,14 +402,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#2c2c2c',
   },
+  backButton: {
+    marginRight: 16,
+    backgroundColor: '#222',
+    borderRadius: 20,
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
     marginRight: 12,
+    marginLeft: 8, // profil fotoğrafını biraz sağa kaydır
   },
   headerInfo: {
     flex: 1,
+    marginLeft: 8, // ismi biraz daha sağa kaydır
   },
   headerName: {
     fontSize: 16,

@@ -7,6 +7,7 @@ import { setSelectedZone, fetchMechanicsSuccess, fetchListingsSuccess } from '..
 import type { Mechanic } from '../../../store/slices/listingsSlice';
 import Card from '../../../components/Card';
 import { ChevronDown, Plus, MessageSquare } from 'lucide-react-native';
+import Constants from 'expo-constants';
 
 const parseSpecialties = (specialtiesData: string[]) => {
   if (!specialtiesData || !specialtiesData.length) return [];
@@ -81,8 +82,9 @@ export default function HomeScreen() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000';
         if (isVehicleOwner && selectedZone) {
-          const response = await fetch('http://192.168.1.103:5000/api/repair-listings/mechanics', {
+          const response = await fetch(`${baseUrl}/api/repair-listings/mechanics`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -98,7 +100,7 @@ export default function HomeScreen() {
           dispatch(fetchMechanicsSuccess(data.data));
         } else if (!isVehicleOwner) {
           // Fetch repair requests for mechanics
-          const response = await fetch('http://192.168.1.103:5000/api/repair-listings/get-listings', {
+          const response = await fetch(`${baseUrl}/api/repair-listings/get-listings`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

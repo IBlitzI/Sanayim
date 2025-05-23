@@ -5,8 +5,10 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { Send, ArrowLeft, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 
 export default function AIChatScreen() {
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
   const router = useRouter();
   const { theme } = useSelector((state: RootState) => state.settings);
   const { token } = useSelector((state: RootState) => state.auth);
@@ -72,7 +74,7 @@ export default function AIChatScreen() {
         } as any);
       }
 
-      const response = await fetch("http://192.168.1.103:5000/api/gemini/chat", {
+      const response = await fetch(`${baseUrl}/api/gemini/chat`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -114,7 +116,7 @@ export default function AIChatScreen() {
 
   const handleClearHistory = async () => {
     try {
-      const response = await fetch("http://192.168.1.103:5000/api/gemini/history", {
+      const response = await fetch(`${baseUrl}/api/gemini/history`, {
         method: 'DELETE',
         headers: {
           'Accept': 'application/json',

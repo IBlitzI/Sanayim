@@ -5,8 +5,10 @@ import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../../store/slices/authSlice';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
+import Constants from 'expo-constants';
 
 export default function LoginScreen() {
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
   const router = useRouter();
   const dispatch = useDispatch();
   
@@ -25,7 +27,7 @@ export default function LoginScreen() {
     setError(null);
 
     try {
-      const response = await fetch('http://192.168.1.103:5000/api/users/login', {
+      const response = await fetch(`${baseUrl}/api/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

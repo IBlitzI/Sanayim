@@ -9,7 +9,7 @@ import { createConversation } from '../../../store/slices/chatSlice';
 import Button from '../../../components/Button';
 import { MapPin, Clock, DollarSign, Calendar } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
-
+import Constants from 'expo-constants';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface Owner {
@@ -64,6 +64,7 @@ interface MediaItem {
 }
 
 export default function ListingDetailScreen() {
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const dispatch = useDispatch();
@@ -108,7 +109,7 @@ export default function ListingDetailScreen() {
     }
     
     try {
-      const response = await fetch(`http://192.168.1.103:5000/api/repair-listings/${id}`, {
+      const response = await fetch(`${baseUrl}/api/repair-listings/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -179,7 +180,7 @@ export default function ListingDetailScreen() {
     
     try {
       // Call the API endpoint as specified: router.post('/:id/bids', protect, authorize('mechanic'), submitBid)
-      const response = await fetch(`http://192.168.1.103:5000/api/repair-listings/${listing._id}/bids`, {
+      const response = await fetch(`${baseUrl}/api/repair-listings/${listing._id}/bids`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -269,7 +270,7 @@ export default function ListingDetailScreen() {
               setLoading(true);
               
               // Call the API endpoint
-              const response = await fetch('http://192.168.1.103:5000/api/repair-listings/select-bid', {
+              const response = await fetch(`${baseUrl}/api/repair-listings/select-bid`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -315,7 +316,7 @@ export default function ListingDetailScreen() {
                       onPress: async () => {
                         try {
                           // Initialize chat with the mechanic
-                          const chatResponse = await fetch('http://192.168.1.103:5000/api/chat', {
+                          const chatResponse = await fetch(`${baseUrl}/api/chat`, {
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json',
@@ -393,7 +394,7 @@ export default function ListingDetailScreen() {
             try {
               setIsCompleting(true);
               
-              const response = await fetch('http://192.168.1.103:5000/api/repair-listings/complete', {
+              const response = await fetch(`${baseUrl}/api/repair-listings/complete`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -430,7 +431,7 @@ export default function ListingDetailScreen() {
                 try {
                   if (listing && listing.ownerId) {
                     // Create or find chat with the vehicle owner
-                    const chatResponse = await fetch('http://192.168.1.103:5000/api/chat', {
+                    const chatResponse = await fetch(`${baseUrl}/api/chat`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -451,7 +452,7 @@ export default function ListingDetailScreen() {
                       // Send message to the vehicle owner with payment link
                       const messageContent = `Aracınızın tamiri tamamlandı. Ödeme ekranına gitmek için tıklayınız: [PAYMENT_LINK:${listing._id}]`;
                       
-                      const messageResponse = await fetch(`http://192.168.1.103:5000/api/chat/messages`, {
+                      const messageResponse = await fetch(`${baseUrl}/api/chat/messages`, {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',

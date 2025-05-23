@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Button from '../../../components/Button';
 import { CreditCard, CircleCheck as CheckCircle, Calendar, Lock } from 'lucide-react-native';
 import { RootState } from '@/store';
 import { useSelector } from 'react-redux';
+import Constants from 'expo-constants';
 
 export default function PaymentScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, chatId } = useLocalSearchParams();
   const router = useRouter();
   
   const [cardNumber, setCardNumber] = useState('');
@@ -16,18 +17,61 @@ export default function PaymentScreen() {
   const [cvv, setCvv] = useState('');
   const [loading, setLoading] = useState(false);
   const { theme } = useSelector((state: RootState) => state.settings);
+  const { token } = useSelector((state: RootState) => state.auth);
   const isDark = theme === 'dark';
-  
-  // Mock repair details
-  const repairDetails = {
-    id: id,
-    mechanicName: 'Ahmet Yılmaz',
-    mechanicImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    vehicleLicensePlate: 'ABC123',
-    repairDescription: 'Brake system repair and replacement of brake pads',
-    amount: 750,
-    currency: '₺',
-  };
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000';
+
+  // RepairListing tipini tanımla veya any kullan
+  const [repair, setRepair] = useState<any>(null);
+  const [fetching, setFetching] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Find the repair listing by id
+  const listingId = Array.isArray(id) ? id[0] : id;
+
+  useEffect(() => {
+    const fetchListing = async () => {
+      setFetching(true);
+      setFetchError(null);
+      try {
+        const response = await fetch(`${baseUrl}/api/repair-listings/${listingId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Not found');
+        setRepair(result.data);
+      } catch (err) {
+        setFetchError(err instanceof Error ? err.message : 'Error');
+      } finally {
+        setFetching(false);
+      }
+    };
+    if (listingId && token) fetchListing();
+  }, [listingId, token]);
+
+  if (fetching) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
+        <Text style={{ color: isDark ? '#fff' : '#000', fontSize: 18, marginTop: 40 }}>Yükleniyor...</Text>
+      </View>
+    );
+  }
+  if (fetchError || !repair) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
+        <Text style={{ color: isDark ? '#fff' : '#000', fontSize: 18, marginTop: 40 }}>Repair listing not found.</Text>
+      </View>
+    );
+  }
+
+  const selectedBid = repair.selectedBidId ? repair.bids.find((b: any) => b._id === repair.selectedBidId) : null;
+  const mechanicName = selectedBid?.mechanicName || 'Mechanic';
+  const mechanicImage = selectedBid?.mechanicId?.profileImage || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80';
+  const amount = selectedBid?.amount || 0;
+  const currency = '₺';
 
   const formatCardNumber = (text: string) => {
     // Remove all non-digit characters
@@ -56,6 +100,8 @@ export default function PaymentScreen() {
     setExpiryDate(formatExpiryDate(text));
   };
 
+  const chatIdStr = Array.isArray(chatId) ? chatId[0] : chatId;
+
   const handlePayment = () => {
     if (!cardNumber || !cardName || !expiryDate || !cvv) {
       Alert.alert('Error', 'Please fill in all payment details');
@@ -82,14 +128,19 @@ export default function PaymentScreen() {
     // Simulate payment processing
     setTimeout(() => {
       setLoading(false);
-      
       Alert.alert(
         'Payment Successful',
         'Your payment has been processed successfully',
         [
           {
             text: 'OK',
-            onPress: () => router.replace('/(app)/(tabs)'),
+            onPress: () => {
+              if (chatIdStr) {
+                router.replace({ pathname: '/(app)/chat/[id]', params: { id: chatIdStr, paid: 'true', paidListingId: listingId } });
+              } else {
+                router.replace('/(app)/(tabs)/messages');
+              }
+            },
           },
         ]
       );
@@ -98,26 +149,27 @@ export default function PaymentScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.sectionTitleContainer}>
+        <Text style={styles.sectionTitle}>Repair Listing Details</Text>
+      </View>
       <View style={styles.repairDetailsContainer}>
         <View style={styles.mechanicInfo}>
           <Image
-            source={{ uri: repairDetails.mechanicImage }}
+            source={{ uri: mechanicImage }}
             style={styles.mechanicImage}
           />
           <View>
-            <Text style={styles.mechanicName}>{repairDetails.mechanicName}</Text>
-            <Text style={styles.licensePlate}>{repairDetails.vehicleLicensePlate}</Text>
+            <Text style={styles.mechanicName}>{mechanicName}</Text>
+            <Text style={styles.licensePlateLabel}>License Plate:</Text>
+            <Text style={styles.licensePlate}>{repair.vehicleLicensePlate}</Text>
           </View>
         </View>
-        
-        <Text style={styles.repairDescription}>{repairDetails.repairDescription}</Text>
-        
+        <Text style={styles.repairDescription}>{repair.description}</Text>
         <View style={styles.amountContainer}>
           <Text style={styles.amountLabel}>Total Amount:</Text>
-          <Text style={styles.amount}>{repairDetails.currency}{repairDetails.amount}</Text>
+          <Text style={styles.amount}>{currency}{amount}</Text>
         </View>
       </View>
-      
       <View style={styles.paymentContainer}>
         <Text style={styles.sectionTitle}>Payment Details</Text>
         
@@ -196,7 +248,7 @@ export default function PaymentScreen() {
         </View>
         
         <Button
-          title={`Pay ${repairDetails.currency}${repairDetails.amount}`}
+          title={`Pay ${currency}${amount}`}
           onPress={handlePayment}
           loading={loading}
           style={styles.payButton}
@@ -210,6 +262,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
+  },
+  sectionTitleContainer: {
+    padding: 20,
+    backgroundColor: '#1e1e1e',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2c2c2c',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
   },
   repairDetailsContainer: {
     padding: 20,
@@ -231,6 +294,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  licensePlateLabel: {
+    fontSize: 14,
+    color: '#3498db',
+    marginTop: 4,
   },
   licensePlate: {
     fontSize: 14,
@@ -259,12 +327,6 @@ const styles = StyleSheet.create({
   },
   paymentContainer: {
     padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 16,
   },
   cardContainer: {
     backgroundColor: '#1e1e1e',

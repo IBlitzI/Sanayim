@@ -6,9 +6,11 @@ import { RootState } from '../../store';
 import { addNewListing } from '../../store/slices/listingsSlice';
 import Button from '../../components/Button';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, X, ChevronDown, MessageSquare } from 'lucide-react-native';
+import { Camera, X, ChevronDown, MessageSquare, ChevronLeft } from 'lucide-react-native';
+import Constants from 'expo-constants';
 
 export default function CreateListingScreen() {
+  const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
   const router = useRouter();
   const dispatch = useDispatch();
   const { user, token } = useSelector((state: RootState) => state.auth);
@@ -83,7 +85,7 @@ export default function CreateListingScreen() {
         } as any);
       });
 
-      const response = await fetch('http://192.168.1.103:5000/api/repair-listings', {
+      const response = await fetch(`${baseUrl}/api/repair-listings`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -121,7 +123,20 @@ export default function CreateListingScreen() {
 
   return (
     <>
-      <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ecf0f1' }]}>
+      <ScrollView style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ecf0f1' }]}
+        contentContainerStyle={{ paddingTop: 80 }} // Add top padding for back button
+      >
+        <TouchableOpacity
+          style={[
+            styles.backButton,
+            {
+              backgroundColor: isDark ? '#222' : '#fff',
+            },
+          ]}
+          onPress={() => router.replace('/(app)/(tabs)')}
+        >
+          <ChevronLeft size={28} color={isDark ? '#fff' : '#222'} />
+        </TouchableOpacity>
         <View style={styles.formContainer}>
           <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#2c3e50' }]}>Vehicle Issue</Text>
           <TextInput
@@ -347,5 +362,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 100,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 40,
+    left: 16,
+    zIndex: 200,
+    borderRadius: 20,
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });

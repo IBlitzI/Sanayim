@@ -5,7 +5,6 @@ import Constants from 'expo-constants';
 import { useDispatch, useSelector } from 'react-redux';
 import { updatePushToken } from '../store/slices/authSlice';
 import { RootState } from '../store';
-
 // Configure notification handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -14,7 +13,7 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
-
+const baseUrl = Constants.expoConfig?.extra?.base_url || 'http://192.168.1.103:5000'
 export function usePushNotifications() {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
@@ -76,7 +75,7 @@ export function usePushNotifications() {
   const sendPushTokenToServer = async (pushToken: string, authToken: string) => {
     console.log("asdfafa")
     try {
-      const response = await fetch('http://192.168.1.103:5000/api/users/push-token', {
+      const response = await fetch(`${baseUrl}/api/users/push-token`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`,
