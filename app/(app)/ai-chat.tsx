@@ -145,6 +145,40 @@ export default function AIChatScreen() {
     }
   };
 
+  // Mesaj içeriğini özel formatlayan fonksiyon
+  const formatMessageContent = (content: string) => {
+    // **kalın** -> bold, *italik* -> italic, "çift tırnak" -> italic
+    // Önce \n ile böl, sonra her satırı işle
+    return content.split('\n').map((line, lineIdx) => {
+      // **bold**, *italic*, "italik"
+      const regex = /(\*\*[^*]+\*\*)|(\*[^*]+\*)|("[^"]+")|([^*"\n]+)/g;
+      const parts = line.match(regex);
+      if (!parts) return line;
+      return (
+        <Text key={lineIdx}>
+          {parts.map((part, idx) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return (
+                <Text key={idx} style={{ fontWeight: 'bold' }}>{part.slice(2, -2)}</Text>
+              );
+            } else if (part.startsWith('*') && part.endsWith('*')) {
+              return (
+                <Text key={idx} style={{ fontStyle: 'italic' }}>{part.slice(1, -1)}</Text>
+              );
+            } else if (part.startsWith('"') && part.endsWith('"')) {
+              return (
+                <Text key={idx} style={{ fontStyle: 'italic' }}>{part.slice(1, -1)}</Text>
+              );
+            } else {
+              return <Text key={idx}>{part}</Text>;
+            }
+          })}
+          {lineIdx !== content.split('\n').length - 1 ? '\n' : null}
+        </Text>
+      );
+    });
+  };
+
   return (
     <KeyboardAvoidingView 
       style={[styles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}
@@ -179,7 +213,7 @@ export default function AIChatScreen() {
               styles.messageText, 
               { color: item.fromUser ? '#fff' : (isDark ? '#fff' : '#2c3e50') } 
             ]}>
-              {item.content}
+              {item.fromUser ? item.content : formatMessageContent(item.content)}
             </Text>
           </View>
         )}

@@ -423,21 +423,54 @@ export default function ProfileScreen() {
                   </View>
                   <View style={styles.infoRow}>
                     <Clock size={14} color={isDark ? '#95a5a6' : '#7f8c8d'} />
-                    <Text style={[styles.listingInfo, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}>
+                    <Text style={[styles.listingInfo, { color: isDark ? '#95a5a6' : '#7f8c8d' }]}> 
                       {new Date(request.createdAt).toLocaleDateString()}
                     </Text>
                   </View>
                 </View>
-                
                 {/* Show number of bids */}
                 {request.bids && request.bids.length > 0 && (
-                  <View style={[styles.bidsCounter, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1' }]}>
+                  <View style={[styles.bidsCounter, { backgroundColor: isDark ? '#2c3e50' : '#ecf0f1' }]}> 
                     <MessageSquare size={14} color={isDark ? '#fff' : '#2c3e50'} />
-                    <Text style={[styles.bidsCount, { color: isDark ? '#fff' : '#2c3e50' }]}>
+                    <Text style={[styles.bidsCount, { color: isDark ? '#fff' : '#2c3e50' }]}> 
                       {request.bids.length} bid{request.bids.length !== 1 ? 's' : ''}
                     </Text>
                   </View>
                 )}
+                {/* Delete button for vehicle owner */}
+                <TouchableOpacity
+                  style={{ marginTop: 10, alignSelf: 'flex-end', backgroundColor: '#e74c3c', paddingVertical: 6, paddingHorizontal: 16, borderRadius: 6 }}
+                  onPress={() => {
+                    Alert.alert(
+                      'Sil',
+                      'Bu ilanı silmek istediğinize emin misiniz?',
+                      [
+                        { text: 'İptal', style: 'cancel' },
+                        { text: 'Sil', style: 'destructive', onPress: async () => {
+                          try {
+                            const response = await fetch(`${baseUrl}/api/repair-listings/${request._id}`, {
+                              method: 'DELETE',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Accept': 'application/json',
+                              },
+                            });
+                            if (!response.ok) {
+                              const errorData = await response.json();
+                              throw new Error(errorData.message || 'Silinemedi');
+                            }
+                            setRepairRequests(prev => prev.filter(r => r._id !== request._id));
+                            Alert.alert('Başarılı', 'İlan silindi.');
+                          } catch (err) {
+                            Alert.alert('Hata', err instanceof Error ? err.message : 'Bir hata oluştu');
+                          }
+                        }}
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Sil</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
             ))
           ) : (

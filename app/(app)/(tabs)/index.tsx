@@ -158,7 +158,7 @@ export default function HomeScreen() {
       <Card
         title={item.fullName}
         subtitle={item.location}
-        description={`Specializes in ${parsedSpecialties.join(', ') || 'General Repair'}`}
+        description={`Uzmanlık Alanları: ${parsedSpecialties.join(', ') || 'General Repair'}`}
         image={item.profileImage}
         rating={item.rating}
         onPress={() => handleMechanicPress(item._id)}
