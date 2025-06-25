@@ -1,6 +1,6 @@
 # SANAYİM
 
-![Sanayim Logo](assets/images/Logo2.png)
+<img src="assets/images/Logo2.png" alt="Sanayim Logo" width="200"/>
 
 ## Uygulama Özeti
 
@@ -16,28 +16,28 @@
 ## Ekran Görüntüleri
 
 ### 1. Yapay Zeka Chat Ekranı
-![Yapay Zeka Chat Ekranı](assets/screenshots/s1.jpg)
+<img src="assets/screenshots/s1.jpg" alt="Yapay Zeka Chat Ekranı" width="300"/>
 
 ### 2. Ustalarla Mesajlaşma ve Ödeme Bildirimi Gönderme Ekranı
-![Mesajlaşma ve Ödeme Bildirimi](assets/screenshots/s2.jpg)
+<img src="assets/screenshots/s2.jpg" alt="Mesajlaşma ve Ödeme Bildirimi" width="300"/>
 
 ### 3. Tamir İlanı Açma Ekranı
-![Tamir İlanı Açma](assets/screenshots/s3.jpg)
+<img src="assets/screenshots/s3.jpg" alt="Tamir İlanı Açma" width="300"/>
 
 ### 4. Ustaların Listelendiği Ana Ekran
-![Usta Listesi](assets/screenshots/s4.jpg)
+<img src="assets/screenshots/s4.jpg" alt="Usta Listesi" width="300"/>
 
 ### 5. Ustaların Yaptığı Teklifler
-![Teklifler](assets/screenshots/s5.jpg)
+<img src="assets/screenshots/s5.jpg" alt="Teklifler" width="300"/>
 
 ### 6. Tamir İlanı Detay Sayfası
-![İlan Detay](assets/screenshots/s6.jpg)
+<img src="assets/screenshots/s6.jpg" alt="İlan Detay" width="300"/>
 
 ### 7. Araç Sahibi Kayıt Olma Ekranı
-![Araç Sahibi Kayıt](assets/screenshots/Screenshot_1749920194.png)
+<img src="assets/screenshots/Screenshot_1749920194.png" alt="Araç Sahibi Kayıt" width="300"/>
 
 ### 8. Sanayi Ustası Kayıt Olma Ekranı
-![Sanayi Ustası Kayıt](assets/screenshots/Screenshot_1749920199.png)
+<img src="assets/screenshots/Screenshot_1749920199.png" alt="Sanayi Ustası Kayıt" width="300"/>
 
 
 ## Katkıda Bulunma
@@ -47,5 +47,5 @@ Katkıda bulunmak için lütfen bir pull request gönderin veya bir issue açın
 
 ## Uygulama Tanıtım Videosu
 
-[YouTube'da İzle](https://youtu.be/H5JJ8inCPmg)
+[YouTube'da İzle](https://www.youtube.com/watch?v=H5JJ8inCPmg&ab_channel=Blitz)
 
