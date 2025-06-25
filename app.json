@@ -33,7 +33,7 @@
       "eas": {
         "projectId": "a064f946-4735-4723-90ce-348dce57bcfd"
       },
-      "base_url": "http://192.168.1.102:5000"
+      "base_url": "http://192.168.1.107:5000"
     },
     "owner": "blitz19"
   }
